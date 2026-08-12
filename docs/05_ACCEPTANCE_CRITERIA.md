@@ -2,6 +2,16 @@
 
 本文件是完成定义，不是当前通过报告。只有附带 commit、命令/设备、结果和日期的条目才能标记 **Verified**。未运行写 **Not run**；失败写 **Failed** 并保留原因。未来 prompt、接口占位或截图不能代替可执行证据。
 
+Foundation 已在 `21cc3a9abbd5f28999c7e44fe03c8b69fe9ae0d4` 合并；本文件保留该阶段的
+历史证据和仍未运行的手工项。当前 Pressure Ink V2 阶段见
+[`06_PRESSURE_INK_V2.md`](./06_PRESSURE_INK_V2.md)。后续阶段的实现不会倒推改变这里的
+Foundation 验证范围，也不会自动勾选 Safari/iPad/touch/PWA 项。
+
+截至 2026-08-13，Pressure Ink V2 simulated/browser 代码已在 working branch 实现，但其
+最终 fixed-commit/hosted evidence 仍待记录。下方诸如“ink diagnostics unavailable”和“无
+pressure mapping”的勾选项是 Foundation tested commit 的历史快照，不是当前代码状态；
+当前状态只以 `06` 和新的 pressure baseline 为准。
+
 ## 证据头
 
 每次完整验收在 `docs/baseline/YYYY-MM-DD.md` 记录：
@@ -217,6 +227,9 @@ Foundation 的 iPad smoke test只证明普通白板输入；不得由此宣称 p
 6. 手工验收步骤与设备；
 7. 未验证/失败项；
 8. 推荐 commit 拆分；
-9. 下一轮提示词是 `prompts/03_PRESSURE_INK_V2.md`，但本轮未执行。
+9. Foundation handoff 当时记录下一轮提示词为 `prompts/03_PRESSURE_INK_V2.md`，且未在
+   Foundation 同轮执行。
 
-最后一项是停止条件：Foundation 完成后不得在同一轮顺便实现 pressure 或模型。
+该停止条件已经遵守。maintainer 随后单独授权的 Pressure Ink V2 simulated/browser 代码已
+在 working branch 实现；它有独立的入口、ADR 和 baseline，最终固定 commit/hosted evidence
+仍待记录，且仍不授权模型、production rollout 或原生 app。
