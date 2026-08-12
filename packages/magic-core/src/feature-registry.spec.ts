@@ -154,4 +154,49 @@ describe('MagicFeatureRegistry', () => {
     });
     expect(registry.list()).toHaveLength(1);
   });
+
+  it('locks existing features off when a runtime settings write fails', async () => {
+    const values = new Map<string, unknown>([
+      ['features.magic.actor.enabled', true],
+      ['features.magic.ink-diagnostics.enabled', true],
+    ]);
+    const settings: MagicSettingsStore = {
+      async get<Value>(key: string): Promise<Value | undefined> {
+        return values.get(key) as Value | undefined;
+      },
+      async set(): Promise<void> {
+        throw new Error('synthetic runtime write failure');
+      },
+      async remove(): Promise<void> {
+        return undefined;
+      },
+      async clear(): Promise<void> {
+        return undefined;
+      },
+    };
+    const registry = new MagicFeatureRegistry<FeatureId>(settings);
+    const actor = await registry.register({ id: 'magic.actor', defaultEnabled: false });
+    const diagnostics = await registry.register({
+      id: 'magic.ink-diagnostics',
+      defaultEnabled: false,
+    });
+    expect(actor.enabled).toBe(true);
+    expect(diagnostics.enabled).toBe(true);
+
+    await expect(registry.setEnabled('magic.actor', false)).resolves.toMatchObject({
+      enabled: false,
+      available: false,
+      settingsStatus: 'write-error',
+    });
+    await expect(registry.setAvailable('magic.ink-diagnostics', false)).resolves.toMatchObject({
+      enabled: false,
+      available: false,
+      settingsStatus: 'write-error',
+    });
+    expect(values.get('features.magic.actor.enabled')).toBe(true);
+    expect(values.get('features.magic.ink-diagnostics.enabled')).toBe(true);
+    await expect(registry.setEnabled('magic.actor', true)).rejects.toThrow(
+      'settings are unavailable'
+    );
+  });
 });

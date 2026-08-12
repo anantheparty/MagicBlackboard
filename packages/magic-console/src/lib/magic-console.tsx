@@ -205,7 +205,9 @@ function renderTab(tab: ConsoleTab, runtime: MagicRuntime) {
                 <strong>{feature.title ?? feature.id}</strong>
                 <small>
                   {feature.description}
-                  {!feature.available && ' · Unavailable in this milestone.'}
+                  {feature.settingsStatus !== 'ready'
+                    ? ` · Settings ${feature.settingsStatus}; locked off without replacing storage.`
+                    : !feature.available && ' · Unavailable in this milestone.'}
                 </small>
               </span>
               <input

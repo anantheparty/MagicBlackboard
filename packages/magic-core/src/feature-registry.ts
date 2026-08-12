@@ -129,7 +129,12 @@ export class MagicFeatureRegistry<Id extends string = string> implements MagicDi
       return previous;
     }
 
-    await this.#settings.set(this.#settingsKey(id), enabled);
+    try {
+      await this.#settings.set(this.#settingsKey(id), enabled);
+    } catch {
+      this.#assertActive();
+      return this.#lockAfterWriteFailure(previous, 'changed');
+    }
     this.#assertActive();
 
     const feature = Object.freeze({ ...previous, enabled });
@@ -161,7 +166,12 @@ export class MagicFeatureRegistry<Id extends string = string> implements MagicDi
 
     const enabled = available ? previous.enabled : false;
     if (enabled !== previous.enabled) {
-      await this.#settings.set(this.#settingsKey(id), enabled);
+      try {
+        await this.#settings.set(this.#settingsKey(id), enabled);
+      } catch {
+        this.#assertActive();
+        return this.#lockAfterWriteFailure(previous, 'availability-changed');
+      }
       this.#assertActive();
     }
 
@@ -235,6 +245,21 @@ export class MagicFeatureRegistry<Id extends string = string> implements MagicDi
     const feature = this.#state(definition, enabled, available, settingsStatus);
     this.#features.set(definition.id, feature);
     this.#notify({ reason: 'registered', feature });
+    return feature;
+  }
+
+  #lockAfterWriteFailure(
+    previous: MagicFeatureState<Id>,
+    reason: Extract<MagicFeatureChangeReason, 'changed' | 'availability-changed'>
+  ): MagicFeatureState<Id> {
+    const feature = Object.freeze({
+      ...previous,
+      enabled: false,
+      available: false,
+      settingsStatus: 'write-error' as const,
+    });
+    this.#features.set(previous.id, feature);
+    this.#notify({ reason, feature, previousEnabled: previous.enabled });
     return feature;
   }
 

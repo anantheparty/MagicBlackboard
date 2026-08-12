@@ -154,6 +154,9 @@ const DRAWNIX_TOOL_POINTERS = new Set<string>([
   ...FREEHAND_TOOL_POINTERS,
 ]);
 const DEFAULT_FREEHAND_PRESET_COUNT = 3;
+const MAX_FREEHAND_PRESET_COUNT = 3;
+const MIN_FREEHAND_STROKE_WIDTH = 1;
+const MAX_FREEHAND_STROKE_WIDTH = 24;
 
 const BOARD_KEY = 'document';
 const TOOL_STATE_KEY = 'tool-state';
@@ -1194,27 +1197,33 @@ function isOptionalAllowedToolPointer(value: unknown, allowed: ReadonlySet<strin
   return value === undefined || (typeof value === 'string' && allowed.has(value));
 }
 
-function parseFreehandPresets(value: unknown): Record<string, unknown>[] | undefined {
+function parseFreehandPresets(
+  value: unknown
+): Array<{ strokeWidth: number; strokeColor?: string }> | undefined {
   if (value === undefined) {
     return undefined;
   }
   if (
     !Array.isArray(value) ||
     value.length === 0 ||
+    value.length > MAX_FREEHAND_PRESET_COUNT ||
     !value.every(
       (preset) =>
         isRecord(preset) &&
         typeof preset.strokeWidth === 'number' &&
         Number.isFinite(preset.strokeWidth) &&
-        preset.strokeWidth > 0 &&
-        preset.strokeWidth <= 1024 &&
+        preset.strokeWidth >= MIN_FREEHAND_STROKE_WIDTH &&
+        preset.strokeWidth <= MAX_FREEHAND_STROKE_WIDTH &&
         (preset.strokeColor === undefined ||
           (typeof preset.strokeColor === 'string' && preset.strokeColor.length <= 128))
     )
   ) {
     return undefined;
   }
-  return value;
+  return value.map((preset) => ({
+    strokeWidth: preset.strokeWidth as number,
+    ...(typeof preset.strokeColor === 'string' ? { strokeColor: preset.strokeColor } : {}),
+  }));
 }
 
 function parseExplicitContext(value: unknown): Partial<ExplicitBoardContext> {

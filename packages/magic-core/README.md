@@ -20,7 +20,8 @@ Every registered feature also exposes a `settingsStatus`: `ready`, `invalid`, `r
 unreadable settings are never overwritten: the feature is still registered for observability, but
 it is unavailable and disabled until the storage problem is repaired. A failed initialization
 write follows the same fail-closed behavior, so consumers do not remain stuck waiting for feature
-registration.
+registration. A later toggle or availability write that fails also locks the in-memory feature off
+with `write-error` without replacing the recoverable persisted value.
 
 ## Settings
 

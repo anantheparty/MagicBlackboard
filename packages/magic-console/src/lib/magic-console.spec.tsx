@@ -86,6 +86,36 @@ describe('MagicConsole', () => {
     runtime.dispose();
   });
 
+  it('distinguishes a recoverable settings error from milestone unavailability', async () => {
+    const runtime = createMagicRuntime({
+      settings: {
+        async get<Value>() {
+          return 'recoverable-invalid-value' as Value;
+        },
+        async set() {
+          return undefined;
+        },
+        async remove() {
+          return undefined;
+        },
+        async clear() {
+          return undefined;
+        },
+      },
+    });
+    await runtime.features.register({
+      id: 'magic.actor',
+      title: 'Actor',
+      defaultEnabled: true,
+    });
+
+    render(<MagicConsole runtime={runtime} initialState={{ open: true, tab: 'Features' }} />);
+
+    expect(screen.getByText(/Settings invalid; locked off without replacing storage/)).toBeTruthy();
+    expect(screen.queryByText(/Unavailable in this milestone/)).toBeNull();
+    runtime.dispose();
+  });
+
   it('does not install keyboard listeners when unavailable', () => {
     const runtime = createMagicRuntime();
     const addWindowListener = vi.spyOn(window, 'addEventListener');

@@ -40,6 +40,7 @@ vi.mock('@drawnix/drawnix', () => ({
     renderOverlay,
     additionalPlugins,
     initialLanguage,
+    initialToolState,
     value,
     onChange,
     onToolStateChange,
@@ -48,6 +49,7 @@ vi.mock('@drawnix/drawnix', () => ({
     renderOverlay: (board: unknown) => unknown;
     additionalPlugins: readonly ((board: unknown) => unknown)[];
     initialLanguage: string;
+    initialToolState?: Record<string, unknown>;
     value: unknown[];
     onChange: (change: {
       children: unknown[];
@@ -70,7 +72,12 @@ vi.mock('@drawnix/drawnix', () => ({
     }
     afterInit(board);
     return (
-      <div data-testid="drawnix" data-language={initialLanguage} data-child-count={value.length}>
+      <div
+        data-testid="drawnix"
+        data-language={initialLanguage}
+        data-child-count={value.length}
+        data-tool-state={JSON.stringify(initialToolState)}
+      >
         {renderOverlay(board) as never}
         <button
           type="button"
@@ -762,6 +769,17 @@ describe('Magic Blackboard App', () => {
         freehandPresets: [{ strokeWidth: 2, strokeColor: '#000000' }],
       },
     ],
+    [
+      'too many custom presets',
+      {
+        activeFreehandPresetIndex: 0,
+        freehandPresets: Array.from({ length: 4 }, () => ({ strokeWidth: 2 })),
+      },
+    ],
+    [
+      'a stroke width outside the supported UI range',
+      { activeFreehandPresetIndex: 0, freehandPresets: [{ strokeWidth: 25 }] },
+    ],
   ])('rejects %s and keeps tool-state autosave locked', async (_caseName, malformedToolState) => {
     localForageState.set(STORAGE_NAMESPACES.board, new Map([['tool-state', malformedToolState]]));
 
@@ -778,6 +796,35 @@ describe('Magic Blackboard App', () => {
         ({ name, key }) => name === STORAGE_NAMESPACES.board && key === 'tool-state'
       )
     ).toBe(false);
+  });
+
+  it('projects recovered freehand presets onto the supported storage contract', async () => {
+    localForageState.set(
+      STORAGE_NAMESPACES.board,
+      new Map([
+        [
+          'tool-state',
+          {
+            pointer: 'feltTipPen',
+            activeFreehandPresetIndex: 0,
+            freehandPresets: [
+              { strokeWidth: 2, strokeColor: '#123456', unknownFutureField: 'drop-me' },
+            ],
+            unknownRootField: 'drop-me-too',
+          },
+        ],
+      ])
+    );
+
+    render(<App />);
+
+    const drawnix = await screen.findByTestId('drawnix');
+    expect(JSON.parse(drawnix.getAttribute('data-tool-state') ?? '{}')).toEqual({
+      pointer: 'feltTipPen',
+      activeFreehandPresetIndex: 0,
+      freehandPresets: [{ strokeWidth: 2, strokeColor: '#123456' }],
+    });
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('recreates a complete board session during Strict Mode effect replay', async () => {
