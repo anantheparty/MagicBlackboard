@@ -2,7 +2,8 @@
 
 `createMagicRuntime()` creates one isolated owner for a board session. Each runtime has a unique
 runtime ID and its own event bus, feature registry, default in-memory settings store, and optional
-canvas adapter.
+canvas adapter. It also owns one fixed-capacity `inkDiagnostics` channel for compact, session-only
+input summaries; pass `inkDiagnosticsCapacity` to override its default capacity of 256 entries.
 
 Canvas document, selection, and viewport changes are bridged into the runtime event bus as
 `canvas:document`, `canvas:selection`, and `canvas:viewport` events. The bridge is unsubscribed when
@@ -17,6 +18,13 @@ implementation exists.
 `attachCanvas(adapter)` transfers adapter ownership to the runtime. Replacing an owned adapter
 disposes the previous one. `detachCanvas()` detaches and returns the adapter without disposing it.
 `dispose()` is idempotent and releases all runtime-owned collaborators.
+
+`inkDiagnostics` implements both the read-only `MagicInkDiagnostics` contract and its separate
+writer contract. Input adapters may record already-aggregated batches there; raw samples and DOM
+events do not enter the runtime event bus. The diagnostics channel is cleared and disposed with its
+owning runtime, so two board runtimes cannot share readings accidentally.
+Runtime ownership does not turn diagnostics on: the product's default-off feature controls whether
+an input adapter calls the writer.
 
 Cleanup is best-effort: one failing listener or owned resource does not prevent the remaining
 resources from being released. After all cleanup attempts, failures are reported together as

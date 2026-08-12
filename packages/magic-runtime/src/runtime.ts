@@ -1,6 +1,7 @@
 import {
   MagicEventBus,
   MagicFeatureRegistry,
+  MagicInkDiagnosticsStore,
   MemoryMagicSettingsStore,
   type MagicActor,
   type MagicBoardContext,
@@ -10,6 +11,7 @@ import {
   type MagicDisposer,
   type MagicIntent,
   type MagicIntentRecognizer,
+  type MagicInkDiagnosticsChannel,
   type MagicSettingsStore,
 } from '@magic-blackboard/core';
 
@@ -58,6 +60,8 @@ export interface MagicRuntimeOptions<
   /** Defaults to true. Set false only when the caller shares the store. */
   readonly ownsSettings?: boolean;
   readonly eventHistoryCapacity?: number;
+  /** Fixed number of compact, session-only ink diagnostic batches retained in memory. */
+  readonly inkDiagnosticsCapacity?: number;
   readonly featureSettingsKeyPrefix?: string;
   readonly contextResolver?: MagicContextResolver<Input, Context> | null;
   readonly intentRecognizer?: MagicIntentRecognizer<Input, Context, Intent> | null;
@@ -74,6 +78,7 @@ export interface MagicRuntime<
   readonly boardId: string;
   readonly events: MagicEventBus<MagicRuntimeEventMap>;
   readonly features: MagicFeatureRegistry;
+  readonly inkDiagnostics: MagicInkDiagnosticsChannel;
   readonly settings: MagicSettingsStore;
   readonly contextResolver: MagicContextResolver<Input, Context> | null;
   readonly intentRecognizer: MagicIntentRecognizer<Input, Context, Intent> | null;
@@ -108,6 +113,7 @@ class DefaultMagicRuntime<
   readonly boardId: string;
   readonly events: MagicEventBus<MagicRuntimeEventMap>;
   readonly features: MagicFeatureRegistry;
+  readonly inkDiagnostics: MagicInkDiagnosticsStore;
   readonly settings: MagicSettingsStore;
   readonly contextResolver: MagicContextResolver<Input, Context> | null;
   readonly intentRecognizer: MagicIntentRecognizer<Input, Context, Intent> | null;
@@ -128,6 +134,9 @@ class DefaultMagicRuntime<
     this.features = new MagicFeatureRegistry(this.settings, {
       settingsKeyPrefix: options.featureSettingsKeyPrefix,
     });
+    this.inkDiagnostics = new MagicInkDiagnosticsStore({
+      capacity: options.inkDiagnosticsCapacity,
+    });
     this.contextResolver = options.contextResolver ?? null;
     this.intentRecognizer = options.intentRecognizer ?? null;
     this.actors = Object.freeze([...(options.actors ?? [])]);
@@ -138,6 +147,7 @@ class DefaultMagicRuntime<
       } catch (error) {
         const errors: unknown[] = [error];
         this.#disposeCollaborators(errors);
+        this.#attempt(() => this.inkDiagnostics.dispose(), errors);
         this.#attempt(() => this.features.dispose(), errors);
         if (this.#ownsSettings) {
           this.#attempt(() => this.settings.dispose?.(), errors);
@@ -201,6 +211,7 @@ class DefaultMagicRuntime<
 
     this.#disposeCollaborators(errors);
 
+    this.#attempt(() => this.inkDiagnostics.dispose(), errors);
     this.#attempt(() => this.features.dispose(), errors);
     if (this.#ownsSettings) {
       this.#attempt(() => this.settings.dispose?.(), errors);
