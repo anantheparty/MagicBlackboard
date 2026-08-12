@@ -1,0 +1,8 @@
+{
+  "name": "magic-console",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/magic-console/src",
+  "projectType": "library",
+  "tags": ["scope:magic", "type:ui"],
+  "targets": {}
+}
