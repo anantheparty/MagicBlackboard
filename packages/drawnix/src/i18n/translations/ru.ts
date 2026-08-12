@@ -75,6 +75,11 @@ const ruTranslations: Translations = {
   'toast.copyToClipboard.svg': 'Выбранные элементы скопированы в буфер обмена как SVG',
   'toast.copyToClipboard.png': 'Выбранные элементы скопированы в буфер обмена как PNG',
   'toast.copyToClipboard.mode.transparent': '(Прозрачный фон)',
+  'toast.image.insertError': 'Не удалось вставить изображение',
+  'toast.image.tooLarge': 'Размер изображения не должен превышать 8 МБ.',
+  'toast.file.saveError': 'Не удалось сохранить файл Drawnix',
+  'toast.file.unsupportedDocument':
+    'Доска превышает поддерживаемые ограничения документа или ресурсов.',
   // Language
   'language.switcher': 'Language',
   'language.chinese': '中文',

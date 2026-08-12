@@ -11,7 +11,7 @@ import {
   ThemeColorMode,
   Viewport,
 } from '@plait/core';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { BoardCreationMode, setCreationMode, withGroup } from '@plait/common';
 import { withDraw } from '@plait/draw';
 import { MindThemeColors, withMind } from '@plait/mind';
@@ -34,6 +34,7 @@ import {
   DrawnixContext,
   DrawnixToolState,
   mergeToolState,
+  type DrawnixDocumentReplacement,
   type DrawnixState,
 } from './hooks/use-drawnix';
 import { ClosePencilToolbar } from './components/toolbar/pencil-mode-toolbar';
@@ -223,6 +224,24 @@ export const Drawnix: React.FC<DrawnixProps> = ({
   ];
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const commitDocumentReplacement = useCallback(
+    ({ elements, viewport, theme }: DrawnixDocumentReplacement) => {
+      setThemeColorMode(theme.themeColorMode);
+      onChange?.({
+        children: elements,
+        operations: [],
+        viewport,
+        selection: null,
+        theme,
+        source: 'document-replace',
+      });
+      onValueChange?.(elements);
+      onSelectionChange?.(null);
+      onViewportChange?.(viewport);
+      onThemeChange?.(theme.themeColorMode);
+    },
+    [onChange, onSelectionChange, onThemeChange, onValueChange, onViewportChange]
+  );
 
   return (
     <I18nProvider
@@ -235,7 +254,9 @@ export const Drawnix: React.FC<DrawnixProps> = ({
         onLanguageChange?.(language);
       }}
     >
-      <DrawnixContext.Provider value={{ appState, setAppState, showToast }}>
+      <DrawnixContext.Provider
+        value={{ appState, setAppState, showToast, commitDocumentReplacement }}
+      >
         <div
           className={classNames('drawnix', {
             'drawnix--mobile': appState.isMobile,

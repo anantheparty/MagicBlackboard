@@ -3,16 +3,18 @@ import {
   PlaitElement,
   PlaitOptionsBoard,
   PlaitPluginElementContext,
-  RectangleClient,
+  getSelectedElements,
   Selection,
 } from '@plait/core';
 import { Freehand, FREEHAND_TYPE } from './type';
 import { FreehandComponent } from './freehand.component';
 import { withFreehandCreate } from './with-freehand-create';
-import { isHitFreehand, isRectangleHitFreehand } from './utils';
+import { getFreehandRectangle, isHitFreehand, isRectangleHitFreehand } from './utils';
 import { withFreehandFragment } from './with-freehand-fragment';
 import { getHitDrawElement, WithDrawOptions, WithDrawPluginKey } from '@plait/draw';
 import { withFreehandErase } from './with-freehand-erase';
+import { isRenderableFreehandInk } from './ink/geometry';
+import { isResizing } from '@plait/common';
 
 export const withFreehand = (board: PlaitBoard) => {
   const { getRectangle, drawElement, isHit, isRectangleHit, getOneHitElement, isMovable, isAlign } =
@@ -27,7 +29,7 @@ export const withFreehand = (board: PlaitBoard) => {
 
   board.getRectangle = (element: PlaitElement) => {
     if (Freehand.isFreehand(element)) {
-      return RectangleClient.getRectangleByPoints(element.points);
+      return getFreehandRectangle(element);
     }
     return getRectangle(element);
   };
@@ -72,5 +74,35 @@ export const withFreehand = (board: PlaitBoard) => {
     customGeometryTypes: [FREEHAND_TYPE],
   });
 
-  return withFreehandErase(withFreehandFragment(withFreehandCreate(board)));
+  return withVariableInkResizeGuard(
+    withFreehandErase(withFreehandFragment(withFreehandCreate(board)))
+  );
+};
+
+const withVariableInkResizeGuard = (board: PlaitBoard): PlaitBoard => {
+  const { apply } = board;
+  let cachedResizeSelection: PlaitElement[] | undefined;
+  let cachedResizeBlocked = false;
+  board.apply = (operation) => {
+    if (operation.type !== 'set_node' || !isResizing(board)) {
+      cachedResizeSelection = undefined;
+      apply(operation);
+      return;
+    }
+    const selectedElements = getSelectedElements(board);
+    if (selectedElements !== cachedResizeSelection) {
+      cachedResizeSelection = selectedElements;
+      cachedResizeBlocked = selectedElements.some(
+        (element) => Freehand.isFreehand(element) && isRenderableFreehandInk(element)
+      );
+    }
+    if (cachedResizeBlocked) {
+      // V1 stores one circular scalar width per point, so anisotropic Plait
+      // resize cannot be represented losslessly. Keep the whole selection
+      // unchanged instead of silently distorting geometry or history.
+      return;
+    }
+    apply(operation);
+  };
+  return board;
 };

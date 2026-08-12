@@ -34,8 +34,10 @@ export class LaserPointer {
   private canvasPos: DOMRect | null = null;
   private drawing = false;
   private container: HTMLElement | null = null;
+  private animationFrameId: number | null = null;
 
   public init(board: PlaitBoard): void {
+    this.destroy();
     this.container = PlaitBoard.getBoardContainer(board).closest('.drawnix') as HTMLElement;
     this.cvsDom = this.container.querySelector(`.${LASER_POINTER_CLASS_NAME}`) as HTMLCanvasElement;
     this.ctx = this.cvsDom.getContext('2d') as CanvasRenderingContext2D;
@@ -63,6 +65,10 @@ export class LaserPointer {
   }
 
   public destroy(): void {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
     if (this.mouseMoveHandler && this.container) {
       this.container.removeEventListener('pointermove', this.mouseMoveHandler);
       this.mouseMoveHandler = null;
@@ -81,6 +87,8 @@ export class LaserPointer {
     this.ctx = null;
     this.canvasPos = null;
     this.drawing = false;
+    this.container = null;
+    this.mouseTrack = [];
   }
 
   private startDraw(): void {
@@ -120,7 +128,10 @@ export class LaserPointer {
     }
 
     if (needDrawInNextFrame) {
-      requestAnimationFrame(() => this.draw());
+      this.animationFrameId = requestAnimationFrame(() => {
+        this.animationFrameId = null;
+        this.draw();
+      });
     } else {
       this.drawing = false;
     }

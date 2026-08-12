@@ -2,7 +2,7 @@ import { getSelectedElements, PlaitBoard, toSvgData } from '@plait/core';
 import { base64ToBlob, boardToImage, download } from './common';
 import { fileOpen } from '../data/filesystem';
 import { IMAGE_MIME_TYPES } from '../constants';
-import { insertImage } from '../data/image';
+import { insertImageWithFeedback } from '../data/image';
 import { getBackgroundColor } from './color';
 import { TRANSPARENT } from '../constants/color';
 import type { DrawnixBoard } from '../hooks/use-drawnix';
@@ -168,5 +168,5 @@ export const addImage = async (board: PlaitBoard) => {
     description: 'Image',
     extensions: Object.keys(IMAGE_MIME_TYPES) as (keyof typeof IMAGE_MIME_TYPES)[],
   });
-  insertImage(board, imageFile);
+  insertImageWithFeedback(board, imageFile);
 };

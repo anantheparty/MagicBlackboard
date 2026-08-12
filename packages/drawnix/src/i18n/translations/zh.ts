@@ -75,6 +75,10 @@ const zhTranslations: Translations = {
   'toast.copyToClipboard.svg': '已将所选项作为 SVG 复制到剪贴板',
   'toast.copyToClipboard.png': '已将所选项作为 PNG 复制到剪贴板',
   'toast.copyToClipboard.mode.transparent': '（透明背景）',
+  'toast.image.insertError': '无法插入图片',
+  'toast.image.tooLarge': '图片大小不能超过 8 MB。',
+  'toast.file.saveError': '无法保存 Drawnix 文件',
+  'toast.file.unsupportedDocument': '当前画板超出了支持的文档或资源限制。',
 
   // Language
   'language.switcher': 'Language',

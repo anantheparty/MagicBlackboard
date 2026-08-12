@@ -11,6 +11,7 @@ import {
 } from '@plait/core';
 import { useEventListener } from 'ahooks';
 import { useEffect, useRef } from 'react';
+import { dispatchBoardPointerLifecycle } from '../plugins/pointer-lifecycle';
 
 const useBoardEvent = (
   board: PlaitBoard,
@@ -74,6 +75,7 @@ const useBoardEvent = (
         isInitialized.current = true;
         return;
       }
+      dispatchBoardPointerLifecycle(board, { reason: 'viewport-change' });
       initializeViewportContainer(board);
       initializeViewBox(board);
       updateViewportOffset(board);

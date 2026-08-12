@@ -79,6 +79,8 @@ export interface MagicInkDiagnosticsEntry {
   readonly acceptedSamples: number;
   readonly coalescedSamples: number;
   readonly droppedSamples: number;
+  readonly geometryDroppedSamples?: number;
+  readonly captureCapped?: boolean;
   readonly interval?: MagicInkIntervalSummary;
   readonly pressure?: MagicInkPressureSummary;
   readonly tilt?: MagicInkTiltSummary;
@@ -94,6 +96,7 @@ export interface MagicInkDiagnosticsTotals {
   readonly acceptedSamples: number;
   readonly coalescedSamples: number;
   readonly droppedSamples: number;
+  readonly geometryDroppedSamples: number;
 }
 
 export interface MagicInkCapabilitySummary {
@@ -195,6 +198,7 @@ type MutableTotals = {
   acceptedSamples: number;
   coalescedSamples: number;
   droppedSamples: number;
+  geometryDroppedSamples: number;
 };
 
 type MutableCapability = {
@@ -247,6 +251,7 @@ export class MagicInkDiagnosticsStore implements MagicInkDiagnosticsChannel {
     this.#totals.acceptedSamples += entry.acceptedSamples;
     this.#totals.coalescedSamples += entry.coalescedSamples;
     this.#totals.droppedSamples += entry.droppedSamples;
+    this.#totals.geometryDroppedSamples += entry.geometryDroppedSamples ?? 0;
     this.#currentStrategy = entry.strategy;
     this.#strategyBatches[entry.strategy] += 1;
     this.#mergeCapability(entry);
@@ -401,6 +406,7 @@ const emptyTotals = (): MutableTotals => ({
   acceptedSamples: 0,
   coalescedSamples: 0,
   droppedSamples: 0,
+  geometryDroppedSamples: 0,
 });
 
 const emptyCapability = (): MutableCapability => ({
@@ -469,6 +475,8 @@ function projectEntry(input: MagicInkDiagnosticsEntry): MagicInkDiagnosticsEntry
     acceptedSamples: nonNegativeInteger(input.acceptedSamples),
     coalescedSamples: nonNegativeInteger(input.coalescedSamples),
     droppedSamples: nonNegativeInteger(input.droppedSamples),
+    geometryDroppedSamples: nonNegativeInteger(input.geometryDroppedSamples ?? 0),
+    captureCapped: input.captureCapped === true,
     ...(interval ? { interval } : {}),
     ...(pressure ? { pressure } : {}),
     ...(tilt ? { tilt } : {}),

@@ -10,6 +10,7 @@ import { useState } from 'react';
 import Menu from '../menu/menu';
 import MenuItem from '../menu/menu-item';
 import { useI18n } from '../../i18n';
+import { fitViewportWithinZoomBounds } from './fit-viewport';
 
 export const ZoomToolbar = () => {
   const board = useBoard();
@@ -63,7 +64,7 @@ export const ZoomToolbar = () => {
               <MenuItem
                 data-testid="open-button"
                 onSelect={() => {
-                  BoardTransforms.fitViewport(board);
+                  fitViewportWithinZoomBounds(board);
                 }}
                 aria-label={t('zoom.fit')}
                 shortcut={`Cmd+Shift+=`}

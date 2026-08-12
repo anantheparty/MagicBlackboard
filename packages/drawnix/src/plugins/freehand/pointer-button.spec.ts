@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  boardDisposers: new WeakMap<object, Set<() => void>>(),
   insertNode: vi.fn(),
+  laserDestroy: vi.fn(),
+  laserInit: vi.fn(),
   removeElements: vi.fn(),
 }));
 
@@ -11,6 +14,13 @@ vi.mock('@plait/common', () => ({
 
 vi.mock('@plait-board/react-board', () => ({
   isTwoFingerMode: () => false,
+  registerBoardDisposer: (board: object, dispose: () => void) => {
+    const disposers = mocks.boardDisposers.get(board) ?? new Set<() => void>();
+    disposers.add(dispose);
+    mocks.boardDisposers.set(board, disposers);
+    return () => disposers.delete(dispose);
+  },
+  setBoardPointerLifecycleHandler: () => () => undefined,
 }));
 
 vi.mock('@plait/core', () => ({
@@ -64,8 +74,8 @@ vi.mock('./smoother', () => ({
 
 vi.mock('../../utils/laser-pointer', () => ({
   LaserPointer: class {
-    destroy = vi.fn();
-    init = vi.fn();
+    destroy = mocks.laserDestroy;
+    init = mocks.laserInit;
   },
 }));
 
@@ -76,21 +86,41 @@ import { FreehandShape } from './type';
 const createPointerEvent = (button: number) =>
   ({
     button,
+    isPrimary: true,
     x: 10,
     y: 10,
   }) as PointerEvent;
 
+const unmountBoard = (board: object) => {
+  const disposers = mocks.boardDisposers.get(board);
+  mocks.boardDisposers.delete(board);
+  disposers?.forEach((dispose) => dispose());
+};
+
 const createBoard = (pointer: string) => ({
+  apply: vi.fn(),
   children: [],
+  getPluginOptions: vi.fn(),
   globalPointerUp: vi.fn(),
   pointer,
+  pointerCancel: vi.fn(),
   pointerDown: vi.fn(),
   pointerMove: vi.fn(),
   pointerUp: vi.fn(),
+  setPluginOptions: vi.fn(),
   theme: {
     themeColorMode: 'default',
   },
   touchStart: vi.fn(),
+  viewport: { zoom: 1 },
+});
+
+beforeEach(() => {
+  mocks.boardDisposers = new WeakMap<object, Set<() => void>>();
+  mocks.insertNode.mockClear();
+  mocks.laserDestroy.mockClear();
+  mocks.laserInit.mockClear();
+  mocks.removeElements.mockClear();
 });
 
 describe('freehand pointer buttons', () => {
@@ -120,5 +150,26 @@ describe('freehand pointer buttons', () => {
 
     expect(originalPointerDown).toHaveBeenCalledOnce();
     expect(mocks.removeElements).not.toHaveBeenCalled();
+  });
+
+  it('silently tears down an active eraser once on generic board unmount', () => {
+    const firstBoard = createBoard(FreehandShape.eraser);
+    withFreehandErase(firstBoard as any);
+
+    firstBoard.pointerDown(createPointerEvent(0));
+    expect(mocks.laserInit).toHaveBeenCalledOnce();
+
+    unmountBoard(firstBoard);
+    unmountBoard(firstBoard);
+    expect(mocks.laserDestroy).toHaveBeenCalledOnce();
+    expect(mocks.removeElements).not.toHaveBeenCalled();
+
+    const secondBoard = createBoard(FreehandShape.eraser);
+    withFreehandErase(secondBoard as any);
+    secondBoard.pointerDown(createPointerEvent(0));
+    secondBoard.pointerUp(createPointerEvent(0));
+
+    expect(mocks.laserInit).toHaveBeenCalledTimes(2);
+    expect(mocks.laserDestroy).toHaveBeenCalledTimes(2);
   });
 });

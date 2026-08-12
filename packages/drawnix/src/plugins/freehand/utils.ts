@@ -23,6 +23,12 @@ import {
   isHitPolyLine,
   isRectangleHitRotatedPoints,
 } from '@plait/draw';
+import {
+  getFreehandRectangle as getInkAwareFreehandRectangle,
+  isRenderableFreehandInk,
+  isRectangleHitFreehandInk,
+  isPointHitFreehandInk,
+} from './ink/geometry';
 
 type FreehandAppState = {
   toolState?: {
@@ -65,6 +71,9 @@ export const isHitFreehand = (board: PlaitBoard, element: Freehand, point: Point
   const antiPoint = rotateAntiPointsByElement(board, point, element) || point;
   const points = element.points;
   const fill = getFillByElement(board, element);
+  if (isRenderableFreehandInk(element)) {
+    return isPointHitFreehandInk(element, antiPoint);
+  }
   if (isClosedPoints(element.points) && fill && fill !== 'none') {
     return isPointInPolygon(antiPoint, points) || isHitPolyLine(points, antiPoint);
   } else {
@@ -78,8 +87,13 @@ export const isRectangleHitFreehand = (
   selection: Selection
 ) => {
   const rangeRectangle = RectangleClient.getRectangleByPoints([selection.anchor, selection.focus]);
+  if (isRenderableFreehandInk(element)) {
+    return isRectangleHitFreehandInk(element, rangeRectangle);
+  }
   return isRectangleHitRotatedPoints(rangeRectangle, element.points, element.angle);
 };
+
+export const getFreehandRectangle = (element: Freehand) => getInkAwareFreehandRectangle(element);
 
 export const getSelectedFreehandElements = (board: PlaitBoard) => {
   return getSelectedElements(board).filter((ele) => Freehand.isFreehand(ele));

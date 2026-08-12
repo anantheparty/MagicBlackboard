@@ -2,7 +2,6 @@ import {
   PlaitBoard,
   PlaitPluginElementContext,
   OnContextChanged,
-  RectangleClient,
   ACTIVE_STROKE_WIDTH,
 } from '@plait/core';
 import {
@@ -13,6 +12,7 @@ import {
 } from '@plait/common';
 import { Freehand } from './type';
 import { FreehandGenerator } from './freehand.generator';
+import { getFreehandRectangle, isRenderableFreehandInk } from './ink/geometry';
 
 export class FreehandComponent
   extends CommonElementFlavour<Freehand, PlaitBoard>
@@ -29,12 +29,12 @@ export class FreehandComponent
   initializeGenerator() {
     this.activeGenerator = createActiveGenerator(this.board, {
       getRectangle: (element: Freehand) => {
-        return RectangleClient.getRectangleByPoints(element.points);
+        return getFreehandRectangle(element);
       },
       getStrokeWidth: () => ACTIVE_STROKE_WIDTH,
       getStrokeOpacity: () => 1,
       hasResizeHandle: () => {
-        return hasResizeHandle(this.board, this.element);
+        return !isRenderableFreehandInk(this.element) && hasResizeHandle(this.board, this.element);
       },
     });
     this.generator = new FreehandGenerator(this.board);

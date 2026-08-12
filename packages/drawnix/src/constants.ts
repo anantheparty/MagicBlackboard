@@ -52,3 +52,18 @@ export const MIME_TYPES = {
 export const VERSIONS = {
   drawnix: 1,
 } as const;
+
+// Import is deliberately bounded before Blob.text()/JSON.parse() so a mistaken
+// or hostile file cannot allocate an unbounded document in the browser.
+export const MAX_DRAWNIX_FILE_BYTES = 32 * 1024 * 1024;
+export const MAX_DRAWNIX_FILE_ELEMENTS = 5_000;
+// This accommodates multiple creator-valid 20k-sample pressure strokes while
+// remaining bounded well below what the 32 MiB byte gate could encode using
+// adversarially terse JSON. Export uses the same validation before writing.
+export const MAX_DRAWNIX_FILE_TREE_VALUES = 2_000_000;
+
+// Images are embedded as base64 data URLs, which expands their source bytes by
+// roughly one third before the board document is persisted. Keep the per-image
+// source bound substantially below the whole-document import limit and reject
+// it before FileReader or the browser image decoder allocates the payload.
+export const MAX_EMBEDDED_IMAGE_FILE_BYTES = 8 * 1024 * 1024;

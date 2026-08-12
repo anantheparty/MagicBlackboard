@@ -1,7 +1,7 @@
 import { BoardTransforms, getSelectedElements, PlaitBoard, PlaitPointerType } from '@plait/core';
 import { isHotkey } from 'is-hotkey';
 import { addImage, canCopySelectionAs, copySelectionAsSvg, saveAsSvg } from '../utils/image';
-import { saveAsJSON, saveJSON } from '../data/json';
+import { DrawnixDocumentValidationError, saveAsJSON, saveJSON } from '../data/json';
 import {
   DrawnixBoard,
   DrawnixFreehandPointer,
@@ -13,12 +13,24 @@ import { BoardCreationMode, setCreationMode } from '@plait/common';
 import { MindPointerType } from '@plait/mind';
 import { FreehandShape } from './freehand/type';
 import { ArrowLineShape, BasicShapes } from '@plait/draw';
+import { i18nInsidePlaitHook } from '../i18n';
+import { fitViewportWithinZoomBounds } from '../components/toolbar/fit-viewport';
 
 export const buildDrawnixHotkeyPlugin = (
   updateAppState: (appState: Partial<DrawnixState>) => void
 ) => {
   const withDrawnixHotkey = (board: PlaitBoard) => {
     const { globalKeyDown, keyDown } = board;
+    const reportSaveError = (error: unknown) => {
+      const { t } = i18nInsidePlaitHook(board);
+      (board as DrawnixBoard).showToast?.({
+        type: 'error',
+        message: t('toast.file.saveError'),
+        ...(error instanceof DrawnixDocumentValidationError
+          ? { description: t('toast.file.unsupportedDocument') }
+          : {}),
+      });
+    };
     const updatePointer = (
       pointer: DrawnixPointerType,
       nextToolState: Partial<DrawnixToolState> = {}
@@ -39,22 +51,31 @@ export const buildDrawnixHotkeyPlugin = (
         (PlaitBoard.getMovingPointInBoard(board) || PlaitBoard.isMovingPointInBoard(board)) &&
         !PlaitBoard.hasBeenTextEditing(board)
       ) {
+        if (isHotkey(['mod+shift+=', 'mod+shift++'], { byKey: true })(event)) {
+          fitViewportWithinZoomBounds(board);
+          event.preventDefault();
+          return;
+        }
         if (isHotkey(['mod+shift+e'], { byKey: true })(event)) {
           saveAsSvg(board);
           event.preventDefault();
           return;
         }
         if (isHotkey(['mod+shift+s'], { byKey: true })(event)) {
-          saveAsJSON(board).then(({ fileHandle }) => {
-            updateAppState({ fileHandle });
-          });
+          void saveAsJSON(board)
+            .then(({ fileHandle }) => {
+              updateAppState({ fileHandle });
+            })
+            .catch(reportSaveError);
           event.preventDefault();
           return;
         }
         if (isHotkey(['mod+s'], { byKey: true })(event)) {
-          saveJSON(board, (board as DrawnixBoard).appState.fileHandle).then(({ fileHandle }) => {
-            updateAppState({ fileHandle });
-          });
+          void saveJSON(board, (board as DrawnixBoard).appState.fileHandle)
+            .then(({ fileHandle }) => {
+              updateAppState({ fileHandle });
+            })
+            .catch(reportSaveError);
           event.preventDefault();
           return;
         }

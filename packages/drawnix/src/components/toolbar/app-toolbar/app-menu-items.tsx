@@ -1,7 +1,24 @@
 import { ExportImageIcon, GithubIcon, OpenFileIcon, SaveFileIcon, TrashIcon } from '../../icons';
 import { useBoard, useListRender } from '@plait-board/react-board';
-import { BoardTransforms, PlaitBoard, PlaitElement, PlaitTheme, Viewport } from '@plait/core';
-import { loadFromJSON, saveAsJSON, saveJSON } from '../../../data/json';
+import {
+  PlaitBoard,
+  PlaitElement,
+  PlaitTheme,
+  Viewport,
+  addSelectedElement,
+  clearViewportOrigination,
+  clearSelectedElement,
+  getSelectedElements,
+  initializeViewBox,
+  updateViewportOffset,
+} from '@plait/core';
+import { calculateFittedViewportWithinZoomBounds } from '../fit-viewport';
+import {
+  DrawnixDocumentValidationError,
+  loadFromJSON,
+  saveAsJSON,
+  saveJSON,
+} from '../../../data/json';
 import MenuItem from '../../menu/menu-item';
 import MenuItemLink from '../../menu/menu-item-link';
 import { saveAsPng, saveAsSvg } from '../../../utils/image';
@@ -16,8 +33,17 @@ import { getShortcutKey } from '../../../utils/common';
 
 export const SaveToFile = () => {
   const board = useBoard();
-  const { appState, setAppState } = useDrawnix();
+  const { appState, setAppState, showToast } = useDrawnix();
   const { t } = useI18n();
+  const reportSaveError = (error: unknown) => {
+    showToast({
+      type: 'error',
+      message: t('toast.file.saveError'),
+      ...(error instanceof DrawnixDocumentValidationError
+        ? { description: t('toast.file.unsupportedDocument') }
+        : {}),
+    });
+  };
   if (!appState.fileHandle) {
     return null;
   }
@@ -25,12 +51,14 @@ export const SaveToFile = () => {
     <MenuItem
       data-testid="save-button"
       onSelect={() => {
-        saveJSON(board, appState.fileHandle).then(({ fileHandle }) => {
-          setAppState((currentAppState) => ({
-            ...currentAppState,
-            fileHandle,
-          }));
-        });
+        void saveJSON(board, appState.fileHandle)
+          .then(({ fileHandle }) => {
+            setAppState((currentAppState) => ({
+              ...currentAppState,
+              fileHandle,
+            }));
+          })
+          .catch(reportSaveError);
       }}
       icon={SaveFileIcon}
       aria-label={t('menu.saveFile')}
@@ -44,18 +72,28 @@ SaveToFile.displayName = 'SaveToFile';
 
 export const SaveAsFile = () => {
   const board = useBoard();
-  const { setAppState } = useDrawnix();
+  const { setAppState, showToast } = useDrawnix();
   const { t } = useI18n();
   return (
     <MenuItem
       data-testid="save-as-button"
       onSelect={() => {
-        saveAsJSON(board).then(({ fileHandle }) => {
-          setAppState((currentAppState) => ({
-            ...currentAppState,
-            fileHandle,
-          }));
-        });
+        void saveAsJSON(board)
+          .then(({ fileHandle }) => {
+            setAppState((currentAppState) => ({
+              ...currentAppState,
+              fileHandle,
+            }));
+          })
+          .catch((error: unknown) => {
+            showToast({
+              type: 'error',
+              message: t('toast.file.saveError'),
+              ...(error instanceof DrawnixDocumentValidationError
+                ? { description: t('toast.file.unsupportedDocument') }
+                : {}),
+            });
+          });
       }}
       icon={SaveFileIcon}
       aria-label={t('menu.saveAsFile')}
@@ -70,20 +108,62 @@ SaveAsFile.displayName = 'SaveAsFile';
 export const OpenFile = () => {
   const board = useBoard();
   const listRender = useListRender();
-  const { setAppState } = useDrawnix();
+  const { setAppState, commitDocumentReplacement } = useDrawnix();
   const { t } = useI18n();
   const clearAndLoad = (value: PlaitElement[], viewport?: Viewport, theme?: PlaitTheme) => {
-    board.children = value;
-    board.viewport = viewport || { zoom: 1 };
-    if (theme) {
-      board.theme = theme;
-    }
-    listRender.update(board.children, {
-      board: board,
+    const previous = {
+      children: board.children,
+      viewport: board.viewport,
+      theme: board.theme,
+      selection: board.selection,
+      selectedElements: getSelectedElements(board),
+      undos: board.history.undos,
+      redos: board.history.redos,
+    };
+    const renderContext = () => ({
+      board,
       parent: board,
       parentG: PlaitBoard.getElementHost(board),
     });
-    BoardTransforms.fitViewport(board);
+    try {
+      listRender.destroy();
+      board.children = value;
+      board.viewport = viewport || { zoom: 1 };
+      if (theme) {
+        board.theme = theme;
+      }
+      board.selection = null;
+      clearSelectedElement(board);
+      board.history.undos = [];
+      board.history.redos = [];
+      listRender.initialize(board.children, renderContext());
+      board.viewport = calculateFittedViewportWithinZoomBounds(board);
+      clearViewportOrigination(board);
+      initializeViewBox(board);
+      updateViewportOffset(board);
+      commitDocumentReplacement({
+        elements: board.children,
+        viewport: board.viewport,
+        theme: board.theme,
+      });
+    } catch (error) {
+      listRender.destroy();
+      board.children = previous.children;
+      board.viewport = previous.viewport;
+      board.theme = previous.theme;
+      board.selection = previous.selection;
+      board.history.undos = previous.undos;
+      board.history.redos = previous.redos;
+      clearSelectedElement(board);
+      for (const element of previous.selectedElements) {
+        addSelectedElement(board, element);
+      }
+      listRender.initialize(board.children, renderContext());
+      clearViewportOrigination(board);
+      initializeViewBox(board);
+      updateViewportOffset(board);
+      throw error;
+    }
   };
   return (
     <MenuItem

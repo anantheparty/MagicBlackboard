@@ -39,6 +39,7 @@ describe('MagicInkDiagnosticsStore', () => {
         acceptedSamples: 3,
         coalescedSamples: 4,
         droppedSamples: 1,
+        geometryDroppedSamples: 2,
         pressure: {
           capability: 'fallback-0.5-suspected',
           minimum: 0.5,
@@ -79,6 +80,7 @@ describe('MagicInkDiagnosticsStore', () => {
       acceptedSamples: 5,
       coalescedSamples: 4,
       droppedSamples: 1,
+      geometryDroppedSamples: 2,
     });
     expect(snapshot.capability).toMatchObject({
       pointerTypes: ['mouse', 'pen'],

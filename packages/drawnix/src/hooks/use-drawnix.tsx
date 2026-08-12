@@ -2,7 +2,7 @@
  * A React context for sharing the board object, in a way that re-renders the
  * context whenever changes occur.
  */
-import { PlaitBoard, PlaitPointerType } from '@plait/core';
+import { PlaitBoard, PlaitElement, PlaitPointerType, PlaitTheme, Viewport } from '@plait/core';
 import { createContext, useContext, type Dispatch, type SetStateAction } from 'react';
 import { MindPointerType } from '@plait/mind';
 import { ArrowLineShape, BasicShapes, DrawPointerType } from '@plait/draw';
@@ -83,17 +83,22 @@ export type DrawnixState = {
   linkState?: LinkState | null;
 };
 
-export const DrawnixContext = createContext<{
-  appState: DrawnixState;
-  setAppState: Dispatch<SetStateAction<DrawnixState>>;
-  showToast: (toast: DrawnixToastOptions) => void;
-} | null>(null);
+export type DrawnixDocumentReplacement = {
+  elements: PlaitElement[];
+  viewport: Viewport;
+  theme: PlaitTheme;
+};
 
-export const useDrawnix = (): {
+type DrawnixContextValue = {
   appState: DrawnixState;
   setAppState: Dispatch<SetStateAction<DrawnixState>>;
   showToast: (toast: DrawnixToastOptions) => void;
-} => {
+  commitDocumentReplacement: (replacement: DrawnixDocumentReplacement) => void;
+};
+
+export const DrawnixContext = createContext<DrawnixContextValue | null>(null);
+
+export const useDrawnix = (): DrawnixContextValue => {
   const context = useContext(DrawnixContext);
 
   if (!context) {

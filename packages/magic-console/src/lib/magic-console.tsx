@@ -319,7 +319,7 @@ function InkDiagnostics({
         <Row label="Pointer types" value={pointerTypes} />
         <Row
           label="Samples"
-          value={`${snapshot.totals.acceptedSamples}/${snapshot.totals.receivedSamples} accepted · ${snapshot.totals.droppedSamples} dropped`}
+          value={`${snapshot.totals.acceptedSamples}/${snapshot.totals.receivedSamples} accepted · ${snapshot.totals.droppedSamples} input dropped · ${snapshot.totals.geometryDroppedSamples} geometry dropped`}
         />
         <Row label="Coalesced" value={`${snapshot.totals.coalescedSamples}`} />
         <Row

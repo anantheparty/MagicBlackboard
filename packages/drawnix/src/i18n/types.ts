@@ -78,6 +78,10 @@ export interface Translations {
   'toast.copyToClipboard.svg': string;
   'toast.copyToClipboard.png': string;
   'toast.copyToClipboard.mode.transparent': string;
+  'toast.image.insertError': string;
+  'toast.image.tooLarge': string;
+  'toast.file.saveError': string;
+  'toast.file.unsupportedDocument': string;
 
   // Language
   'language.switcher': string;

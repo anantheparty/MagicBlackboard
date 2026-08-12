@@ -158,7 +158,7 @@ describe('MagicConsole', () => {
     expect(getSnapshot).toHaveBeenCalledTimes(snapshotsBeforeRecords + 1);
     expect(screen.getByText('hardware-pressure')).toBeTruthy();
     expect(screen.getByText('variable-observed')).toBeTruthy();
-    expect(screen.getByText('9/12 accepted · 3 dropped')).toBeTruthy();
+    expect(screen.getByText('9/12 accepted · 3 input dropped · 0 geometry dropped')).toBeTruthy();
     expect(screen.getByText('12')).toBeTruthy();
     expect(screen.getByText('3/256 batches')).toBeTruthy();
 
