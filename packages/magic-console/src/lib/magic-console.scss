@@ -13,6 +13,53 @@
   font-size: 13px;
 }
 
+.magic-console__launcher {
+  position: absolute;
+  z-index: 50;
+  top: 50%;
+  right: max(12px, env(safe-area-inset-right));
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px 7px 7px;
+  transform: translateY(-50%);
+  color: #e8efe9;
+  border: 1px solid #3c4840;
+  border-radius: 12px;
+  background: color-mix(in srgb, #111713 94%, transparent);
+  box-shadow: 0 10px 34px rgb(0 0 0 / 16%);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  touch-action: manipulation;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.magic-console__launcher > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #182016;
+  background: #d7f06f;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.magic-console__launcher:hover {
+  border-color: #617265;
+  background: color-mix(in srgb, #19221c 96%, transparent);
+}
+
+.magic-console__launcher:focus-visible,
+.magic-console button:focus-visible {
+  outline: 2px solid #d7f06f;
+  outline-offset: 2px;
+}
+
 .magic-console__resize {
   position: absolute;
   inset: 0 auto 0 -5px;
@@ -52,8 +99,9 @@
 }
 
 .magic-console__header > button {
-  width: 32px;
-  height: 32px;
+  flex: none;
+  width: 44px;
+  height: 44px;
   font-size: 24px;
   border: 0;
   border-radius: 8px;

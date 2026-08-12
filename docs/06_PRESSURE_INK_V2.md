@@ -20,6 +20,13 @@ Foundation 入口证据仍在
 synthetic benchmark 的完整 summary JSON 见
 [`baseline/2026-08-13-pressure-ink-v2-benchmarks.json`](./baseline/2026-08-13-pressure-ink-v2-benchmarks.json)。
 
+Pressure gate 后的 development Console touch launcher 是独立 follow-up：固定代码 commit
+`bb952355367d152de68c39cb9912f182bffee4b0` 本地门禁已通过，PR #7 exact head
+`26b9e11aa42a011004d0e75184395c4a43836d88` 的 hosted run `31626214413` 在 Linux/macOS 全绿；
+细节见
+[`baseline/2026-08-13-dev-console-touch-launcher.md`](./baseline/2026-08-13-dev-console-touch-launcher.md)。
+这仍只是 Chromium browser/touch simulation，不改变下述物理设备停止条件。
+
 ## 已实现范围
 
 ### 输入、能力判断与宽度生成
@@ -139,6 +146,9 @@ benchmark 只使用 synthetic 内容；没有新增 AI SDK、provider、API key�
 - [x] diagnostics capacity、redaction、production unavailable 与关闭 console 后 UI 不再刷新。
 - [x] file/image preflight limits、v1/web envelope 与 supported schema、Safari FileReader failure paths。
 - [x] legacy 和 simulated-pressure 两种 benchmark 均在没有真实落盘目标 stroke 时 fail hard。
+- [x] Pressure 自动门禁后的独立 follow-up 为 development Console 增加 44px 可触控 launcher，
+      覆盖点击/焦点恢复、`available=false` fail-closed，以及 390×844 Chromium 移动布局仿真。
+      固定代码 commit 与证据单独记录，且不改写本轮 Pressure fixed-commit 结果。
 
 release evidence：
 
@@ -165,6 +175,10 @@ PointerEvent 自动勾选：
 - iPad Safari tab 与 Home Screen web app 的横竖屏、Apple Pencil、刷新恢复和输入质量；
 - 命名 PC/macOS 数位板及其 driver；
 - 共享 origin、真实 subpath、offline/update/旧 cache/client-route/install 等 PWA 场景。
+
+开发控制台 launcher follow-up 的 390×844 `hasTouch` + 移动 UA E2E 只验证 Chromium 中的
+入口可达性、44px 命中区和 mobile layout 分支；它不关闭上面的真实 touch、Safari、iPad、
+Pencil 或 PWA 项。
 
 命名矩阵见 [`03_PLATFORM_STRATEGY.md`](./03_PLATFORM_STRATEGY.md)。下一步需要 maintainer
 提供或采购明确型号的 iPad/Apple Pencil 与 desktop tablet，并按同一任务

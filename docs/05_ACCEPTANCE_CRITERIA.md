@@ -150,6 +150,9 @@ baseline。
 ## H. 开发控制台
 
 - [x] `Cmd/Ctrl + Shift + D` 打开/关闭，listener 在 unmount 后清理。
+- [x] development build 关闭态提供可点击/可触控的 `Dev Console` launcher；launcher 与关闭
+      按钮命中区至少 44px，点击打开/关闭后焦点双向恢复，`available=false` 不渲染入口或安装
+      listener/subscription。桌面及窄屏证据见独立 follow-up baseline。
 - [ ] 可折叠、可调宽，并有 Overview、Features、Board Inspector、Input、Actors、Events。
 - [x] 未实现能力明确标识；`magic.ink-diagnostics` 和 `magic.actor` unavailable 且不能启用。
 - [x] feature 状态与 console UI 状态使用不同 namespace/store key 持久化。
@@ -204,6 +207,10 @@ Service-worker 已静态复核为 Magic-specific scope/cache prefix 和 shell al
 client route fallback 与 iPad 安装仍为 **Not run**。
 
 Foundation 的 iPad smoke test只证明普通白板输入；不得由此宣称 pressure/tilt/palm rejection 已支持。
+
+390×844 Chromium `hasTouch` + 移动 UA 自动回归已验证 Console launcher 可达、面板未越界且
+开关后 board 仍 mounted；它没有覆盖完整 toolbar/gesture 矩阵，因此上面的 Narrow/touch 与
+Console 手工项仍保持未勾选，也不是 Safari/iPad/物理触控证据。
 
 ## L. 明确禁止以此阶段“完成”名义交付
 
