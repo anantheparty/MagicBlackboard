@@ -15,7 +15,8 @@
 - Node/npm：Node `20.20.2`，npm `10.8.2`；命令显式使用
   `PATH=/opt/homebrew/opt/node@20/bin:$PATH`
 - system Chrome：`151.0.7922.109`
-- hosted CI：**Pending**；本 follow-up 尚未取得 exact-head Linux/macOS run
+- hosted CI：**Verified**；PR #7 run `31626214413` 在 exact head
+  `26b9e11aa42a011004d0e75184395c4a43836d88` 上 Linux/macOS 全部通过
 - physical Safari/iPad/Pencil/tablet/touch/PWA：**Not run / Unverified**
 
 ## 结果与边界
@@ -65,6 +66,25 @@
 首次窄屏 E2E 暴露 Close 按钮在 flex header 中被压缩为约 `40.28px`；增加 `flex:none` 后，focused
 测试连续 3/3 通过。该失败作为真实迭代证据保留，没有被写成一次性成功。
 
+## Hosted CI
+
+PR [#7](https://github.com/anantheparty/MagicBlackboard/pull/7) 的 `pull_request` run
+[`31626214413`](https://github.com/anantheparty/MagicBlackboard/actions/runs/31626214413) 在 exact head
+`26b9e11aa42a011004d0e75184395c4a43836d88` 上成功：
+
+- Linux job
+  [`94213120681`](https://github.com/anantheparty/MagicBlackboard/actions/runs/31626214413/job/94213120681)：
+  **Verified**，2026-08-12 18:09:18Z–18:11:30Z（2m12s）；`npm ci`、Playwright 安装、lint、
+  format、affected test/build/E2E 全部通过。
+- macOS foundation job
+  [`94213120722`](https://github.com/anantheparty/MagicBlackboard/actions/runs/31626214413/job/94213120722)：
+  **Verified**，2026-08-12 18:09:18Z–18:10:33Z（1m15s）；`npm ci`、lint、format、workspace
+  tests 与 Magic build 全部通过。
+
+本节记录的是包含固定代码 commit 与本文件初版的 exact head。追加本 hosted 证据会产生一个仅文档
+的新 PR head；合并前仍须在 PR 上检查该最终 head 的 Linux/macOS checks，避免把旧 SHA 的结果冒充为
+最终 SHA 的 hosted evidence。
+
 ## 尚未验证
 
 - 完整 desktop 手工工具、Console 调宽、所有 tab、two-tab 与长时间 diagnostics 操作：**Not run**。
@@ -72,7 +92,8 @@
   **Not run / Unverified**。
 - Home Screen、shared-origin/subpath、offline/update/旧 cache/install 等 PWA：
   **Not run / Unverified**。
-- 本 follow-up exact head 的 hosted Linux/macOS CI：**Pending**，必须在 PR 后记录再合并。
+- 追加 hosted 证据后产生的最终仅文档 PR head：必须在合并前检查 exact-head Linux/macOS CI；
+  该递归证据记录在 PR 检查/评论中，不回写本文件制造无限 evidence commit。
 
 因此这份证据只关闭“development Console 无键盘入口”的 browser-simulated 操作缺口，不改变
 Pressure Ink V2 的物理设备停止条件，也不能被表述为 iPad、Safari、Pencil 或真实 touch 支持。

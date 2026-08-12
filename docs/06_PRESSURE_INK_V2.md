@@ -20,6 +20,13 @@ Foundation 入口证据仍在
 synthetic benchmark 的完整 summary JSON 见
 [`baseline/2026-08-13-pressure-ink-v2-benchmarks.json`](./baseline/2026-08-13-pressure-ink-v2-benchmarks.json)。
 
+Pressure gate 后的 development Console touch launcher 是独立 follow-up：固定代码 commit
+`bb952355367d152de68c39cb9912f182bffee4b0` 本地门禁已通过，PR #7 exact head
+`26b9e11aa42a011004d0e75184395c4a43836d88` 的 hosted run `31626214413` 在 Linux/macOS 全绿；
+细节见
+[`baseline/2026-08-13-dev-console-touch-launcher.md`](./baseline/2026-08-13-dev-console-touch-launcher.md)。
+这仍只是 Chromium browser/touch simulation，不改变下述物理设备停止条件。
+
 ## 已实现范围
 
 ### 输入、能力判断与宽度生成
