@@ -23,9 +23,10 @@ Unverified items:
 截至 2026-08-12 的实际证据集中在
 [`baseline/2026-08-12.md`](./baseline/2026-08-12.md)。其中保留了上游基线、中间失败、
 工作树自动测试、system Chrome E2E 的失败/修复/3/3 通过、范围受限的浏览器 mount 检查和
-依赖审计。最新 3/3 是 focused worktree rerun，仍必须在最终提交树复核。
-**最终 Foundation commit 的五命令门禁仍为 Pending**；下面未勾选的最终门禁和手工设备项
-不能由这些局部证据替代。
+依赖审计。最终本地自动门禁已在 clean commit
+`e85e8e4dbc8c66c070a3c4901a43b0634ce1b011` 通过，包括 uncached workspace test/build、
+Magic typecheck 和 system Chrome 3/3 E2E。GitHub-hosted Foundation CI、完整手工工具矩阵、
+Safari、touch/iPad 与真实 PWA 场景仍未验证，不能由本地自动证据替代。
 
 ## A. 来源与仓库治理
 
@@ -35,7 +36,8 @@ Unverified items:
 - [x] 根 `LICENSE` 未删除/缩减；Drawnix 与 Plait 归属在 `NOTICE.md` 清晰保留。
 - [x] `AGENTS.md`、`SECURITY.md`、`.env.example` 和 `docs/00`–`05` 存在且互相一致。
 - [x] 本地 `.env*` 被忽略且 `.env.example` 可跟踪（2026-08-12 以 `git check-ignore -v` 验证）；tracked/staged 文件仍须在每次 push 前重新检查不含 secret 或真实用户/课堂数据。
-- [ ] GitHub repository 保持 public 前完成 staged diff 与 secret scan review。
+- [x] tested commit 的 tracked worktree、diff 与文件名完成公开仓库检查；secret/key/个人路径
+      模式无命中，只有预期可跟踪的 `.env.example`。证据文档提交前仍须再检查其 staged diff。
 
 证据：`git remote -v`、`git config --get remote.upstream.pushurl`、`git diff --check`、tracked filename review；不得把 credential 输出复制进基线。
 
@@ -59,10 +61,10 @@ npm run build
 - [x] 每个命令有真实 exit code；上游已有失败没有通过升级/跳过/弱化检查掩盖。
 - [x] `.nvmrc` 与实际 Node 版本记录（`20.20.2`，npm `10.8.2`）。
 - [x] Nx、React、Vite、Plait、Drawnix 版本从 checkout/lockfile 读取，而非凭记忆。
-- [ ] Foundation 完成后重新运行同一组命令。
+- [x] Foundation 在 clean commit `e85e8e4` 上重新运行 install/lint/format/test/build，均 exit 0。
 
 证据见 [`baseline/2026-08-12.md`](./baseline/2026-08-12.md)：上游 5 个命令均通过；
-Foundation 的最终提交门禁仍为 Pending，不能用中间工作树的通过结果代替。
+Foundation 最终本地门禁也在固定 commit 上通过，且保留所有先前失败迭代。
 
 ## C. Magic Blackboard app
 
@@ -95,7 +97,8 @@ Foundation 的最终提交门禁仍为 Pending，不能用中间工作树的通�
 
 “画一笔后立即 reload”回归曾因 `pagehide` 中的异步 IndexedDB 写入未完成而失败；改成文档
 mutation 即时保存后，focused system Chrome E2E 已恢复 3/3。完整 board/viewport/theme/tool
-刷新矩阵和最终提交树尚未验证，所以组合条目仍未勾选；失败证据也保留在 baseline。
+刷新矩阵尚未验证，所以组合条目仍未勾选；最终 commit 的 E2E 已通过，旧失败仍保留在
+baseline。
 
 ## D. Drawnix 通用扩展点
 
@@ -152,8 +155,9 @@ mutation 即时保存后，focused system Chrome E2E 已恢复 3/3。完整 boar
 
 ## J. CI 与质量门
 
-- [ ] GitHub 已将 default-branch `CI` workflow `332622627` 注册为 active，且 upstream 激活 run
-      已排队；Foundation 分支的 Linux/macOS hosted 结果仍待 push/PR 后确认。
+- [ ] GitHub 已将 default-branch `CI` workflow `332622627` 注册为 active；激活 run
+      `31583193501` 在 pre-Foundation commit `6ab3603` 成功且所有 main steps 通过，但
+      Foundation 分支的 Linux/macOS hosted 结果仍待 push/PR 后确认。
 - [x] 已增加 macOS CI 定义，运行 install、lint、format check、workspace tests 和 Magic build；托管运行结果尚待首个 PR。
 - [x] workflow 使用 read-only `permissions`、SHA-pinned actions，publish job 和根发布脚本在 Foundation 期间 fail-closed。
 - [x] 自动测试已覆盖以下基础项：
@@ -165,7 +169,8 @@ mutation 即时保存后，focused system Chrome E2E 已恢复 3/3。完整 boar
   - CanvasAdapter selection/bounds/coordinates；
   - console shortcut；
   - mount/unmount listener cleanup。
-- [ ] `npm ci`、`npm run lint`、`npm run format:check`、`npm test`、`npm run build` 全部在最终 commit 运行并记录。
+- [x] `npm ci`、`npm run lint`、`npm run format:check`、uncached `npm test` 与 uncached
+      `npm run build` 全部在 clean commit `e85e8e4` 运行并记录；102 tests 通过，build 9/9。
 
 若格式化工具会改写不属于本次工作的用户文件，先停止并缩小目标；不能为了全绿提交无关格式化。
 
