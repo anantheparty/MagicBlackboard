@@ -25,8 +25,9 @@ Unverified items:
 工作树自动测试、system Chrome E2E 的失败/修复/3/3 通过、范围受限的浏览器 mount 检查和
 依赖审计。最终本地自动门禁已在 clean commit
 `e85e8e4dbc8c66c070a3c4901a43b0634ce1b011` 通过，包括 uncached workspace test/build、
-Magic typecheck 和 system Chrome 3/3 E2E。GitHub-hosted Foundation CI、完整手工工具矩阵、
-Safari、touch/iPad 与真实 PWA 场景仍未验证，不能由本地自动证据替代。
+Magic typecheck 和 system Chrome 3/3 E2E。PR #5 的 Foundation hosted Linux/macOS CI 随后在
+修复 commit `5d6e679` 全部通过。完整手工工具矩阵、Safari、touch/iPad 与真实 PWA 场景仍
+未验证，不能由自动证据替代。
 
 ## A. 来源与仓库治理
 
@@ -155,10 +156,11 @@ baseline。
 
 ## J. CI 与质量门
 
-- [ ] GitHub 已将 default-branch `CI` workflow `332622627` 注册为 active；激活 run
-      `31583193501` 在 pre-Foundation commit `6ab3603` 成功且所有 main steps 通过，但
-      Foundation 分支的 Linux/macOS hosted 结果仍待 push/PR 后确认。
-- [x] 已增加 macOS CI 定义，运行 install、lint、format check、workspace tests 和 Magic build；托管运行结果尚待首个 PR。
+- [x] GitHub `CI` workflow `332622627` 已 active；PR #5 run `31584732783` 在 Foundation
+      commit `5d6e679` 上 Linux/macOS 全部通过。首次 run 的 Linux 时序失败与修复保留在
+      baseline；若仅证据文档产生新 head，仍须检查该 head 的最终 run。
+- [x] macOS hosted job 已验证 install、lint、format check、workspace tests 和 Magic build；
+      run `31584732783` 于 1m15s 成功。
 - [x] workflow 使用 read-only `permissions`、SHA-pinned actions，publish job 和根发布脚本在 Foundation 期间 fail-closed。
 - [x] 自动测试已覆盖以下基础项：
   - product app mount；
