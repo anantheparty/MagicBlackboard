@@ -325,8 +325,10 @@ describe('Magic Blackboard App', () => {
 
     expect((await screen.findByRole('alert')).textContent).toContain('暂时无法启动');
     expect(adapter.attach).not.toHaveBeenCalled();
-    expect(runtime.dispose).toHaveBeenCalled();
-    expect(adapter.dispose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(runtime.dispose).toHaveBeenCalled();
+      expect(adapter.dispose).toHaveBeenCalled();
+    });
     expect(setItemCalls).toEqual([]);
   });
 
