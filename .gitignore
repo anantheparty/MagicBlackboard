@@ -41,5 +41,14 @@ Thumbs.db
 .nx/cache
 .nx/workspace-data
 
+# Local configuration and secrets (public repository)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.mobileprovision
+
 .claude/worktrees
 .claude/settings.local.json
