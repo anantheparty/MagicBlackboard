@@ -1,17 +1,17 @@
 # 06 — Pressure Ink V2 实现与验收
 
-- 当前阶段：**Pressure Ink V2 local automated gates verified at
-  `15844cd51015ee7441f83ac56f690bc21011210c`**
+- 当前阶段：**Pressure Ink V2 simulated/browser implementation automated gate complete**
 - 功能实现：**Implemented**
-- 最终固定代码 commit 本地门禁：**Verified**
-- Pressure Ink V2 hosted CI：**Pending**
+- 最终固定代码 commit `15844cd51015ee7441f83ac56f690bc21011210c` 本地门禁：**Verified**
+- Pressure Ink V2 hosted CI（exact head
+  `6d980e2a76bc42f6ce8ea853dd792a69394ab810`）：**Verified**
 - 硬件兼容：**Not run**
 - 平台结论：**Unverified**
 - 更新日期：2026-08-13
 
-本文件区分三类事实：代码和固定 commit 本地自动门禁已经验证；hosted CI 仍待记录；
-Safari、iPad、Apple Pencil、数位板、真实 touch 和 PWA 仍未运行。maintainer 授权的是可回放、
-默认关闭的浏览器实现，不是硬件豁免或兼容性声明。
+本文件区分三类事实：代码和固定 commit 本地自动门禁已经验证；PR #6 的 hosted Linux/macOS
+CI 已验证；Safari、iPad、Apple Pencil、数位板、真实 touch 和 PWA 仍未运行。maintainer
+授权的是可回放、默认关闭的浏览器实现，不是硬件豁免或兼容性声明。
 
 Foundation 入口证据仍在
 [`baseline/2026-08-12-pressure-ink-v2.md`](./baseline/2026-08-12-pressure-ink-v2.md)；本轮
@@ -115,7 +115,14 @@ benchmark 只使用 synthetic 内容；没有新增 AI SDK、provider、API key�
 - 固定代码 commit `15844cd51015ee7441f83ac56f690bc21011210c` 在 clean worktree 上通过本地
   install、lint、format、301 tests、build、typecheck、20 个 direct TypeScript config、Magic
   system-Chrome E2E 5/5、production dependency audit 与两种 mode 各三次 benchmark。完整命令、
-  duration、warning 和限制保存在本轮 baseline。hosted CI 仍为 **Pending**。
+  duration、warning 和限制保存在本轮 baseline。
+- PR [#6](https://github.com/anantheparty/MagicBlackboard/pull/6) 的
+  [workflow run 31623248572](https://github.com/anantheparty/MagicBlackboard/actions/runs/31623248572)
+  以 `pull_request` event 在 exact head `6d980e2a76bc42f6ce8ea853dd792a69394ab810`
+  **Verified**：macOS foundation job `94203061929` PASS（1m35s），Linux job
+  `94203061818` PASS（2m49s）。Linux 在安装 Playwright browsers 后通过 affected E2E，补齐了
+  本机 upstream `web-e2e` 因 bundled browsers 未安装而无法启动的环境限制；这仍不是物理
+  Safari、Pencil、tablet、touch 或 PWA 证据。
 
 ## 自动验收状态
 
@@ -139,11 +146,13 @@ release evidence：
       Magic targets 和 system-Chrome E2E 的命令、退出码、日期与 warning。
 - [x] 在相同固定代码 commit 重新运行 legacy 与 simulated-pressure benchmark 各三次，保留
       完整 summary JSON、方法和局限。
-- [ ] 推送后记录 Pressure Ink V2 hosted Linux/macOS CI 的 run、head SHA 与结果。
+- [x] PR #6 的 hosted Linux/macOS CI 已记录 workflow run `31623248572`、exact head
+      `6d980e2a76bc42f6ce8ea853dd792a69394ab810` 和两个 PASS job。
 
 额外尝试 upstream `web-e2e` 时，其 Chromium、Firefox、WebKit 三个 project 都在 launch 前因
 本机未安装对应 Playwright bundled browser 而失败，没有执行 product assertion。这个本地环境
-限制被原样保留，不能写作测试通过；hosted CI 会安装浏览器后运行该矩阵。
+限制被原样保留，不能写作本地测试通过；hosted Linux CI 已安装 Playwright browsers，并通过
+affected E2E，从托管环境补齐了该限制。
 
 ## 物理设备与平台停止条件
 
@@ -157,8 +166,8 @@ PointerEvent 自动勾选：
 - 命名 PC/macOS 数位板及其 driver；
 - 共享 origin、真实 subpath、offline/update/旧 cache/client-route/install 等 PWA 场景。
 
-命名矩阵见 [`03_PLATFORM_STRATEGY.md`](./03_PLATFORM_STRATEGY.md)。hosted CI 完成后，下
-一步需要 maintainer 提供或采购明确型号的 iPad/Apple Pencil 与 desktop tablet，并按同一任务
+命名矩阵见 [`03_PLATFORM_STRATEGY.md`](./03_PLATFORM_STRATEGY.md)。下一步需要 maintainer
+提供或采购明确型号的 iPad/Apple Pencil 与 desktop tablet，并按同一任务
 记录 OS、浏览器、driver、capability、fallback、p50/p95、long tasks、丢点、误触与主观问题。
 在此之前，输出仍是 **Unverified**，既不是 **Continue Web/PWA**，也不是 **Run native
 PencilKit comparison spike**。

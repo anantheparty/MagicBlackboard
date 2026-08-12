@@ -15,16 +15,16 @@ The local-first whiteboard Foundation was merged at
 `21cc3a9abbd5f28999c7e44fe03c8b69fe9ae0d4`. The **Pressure Ink V2 simulated/browser
 implementation is committed**, and its final fixed-code commit
 `15844cd51015ee7441f83ac56f690bc21011210c` has passed the recorded local automated gates. Hosted
-CI is still **Pending**. The implementation provides a default-off, backward-compatible
+CI is **Verified** for PR #6 at exact head `6d980e2a76bc42f6ce8ea853dd792a69394ab810`.
+The implementation provides a default-off, backward-compatible
 variable-width path and separately controlled, bounded development diagnostics. Simulation verifies
 code paths only; it is never evidence of Apple Pencil, pen-tablet, Safari, touch, or PWA hardware
 support. Those platform conclusions remain **Unverified** until the named-device matrix is run.
 
 Pressure Ink V2 does **not** include model calls, intent inference, actor automation,
 collaboration, WebSockets, Electron, hybrid wrappers, PencilKit, or native iPad code. Both ink
-features are unavailable in production builds. The next gate is hosted CI followed by named
-physical-device testing; unavailable features must remain behavior-neutral and labelled as
-unavailable.
+features are unavailable in production builds. The next gate is named physical-device testing;
+unavailable features must remain behavior-neutral and labelled as unavailable.
 
 Read these before changing the repository:
 
@@ -36,9 +36,9 @@ Read these before changing the repository:
 6. `docs/05_ACCEPTANCE_CRITERIA.md` — historical Foundation completion evidence and unverified manual items.
 7. The nearest source, tests, `project.json`, and package README for the area being changed.
 
-The pressure prompt's simulated/browser implementation and fixed-commit local automated gates have
-been satisfied. Its hosted CI and physical-device acceptance gate have not yet been recorded. Do
-not silently turn automated or simulated evidence into a hardware compatibility claim.
+The pressure prompt's simulated/browser implementation, fixed-commit local automated gates, and
+hosted Linux/macOS CI have been satisfied. Its physical-device acceptance gate has not yet been
+recorded. Do not silently turn automated or simulated evidence into a hardware compatibility claim.
 
 ## Repository map and dependency direction
 

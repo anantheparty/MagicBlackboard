@@ -2,7 +2,8 @@
 
 - 决策状态：**Accepted**
 - 实现状态：**Implemented; local automated gates Verified at
-  `15844cd51015ee7441f83ac56f690bc21011210c`; hosted CI Pending**
+  `15844cd51015ee7441f83ac56f690bc21011210c`; hosted CI Verified at exact head
+  `6d980e2a76bc42f6ce8ea853dd792a69394ab810`**
 - 决策日期：2026-08-12
 - 实现更新：2026-08-13
 - 适用范围：Pressure Ink V2 simulated implementation
@@ -141,10 +142,14 @@ variable renderer，必须先定义现有 valid-v1 文件的降级/迁移策略�
 
 实现及对应自动回归已覆盖 legacy、missing/malformed/unknown-version、valid v1、feature-off、
 `apps/web` compatibility、round trip、persistence、bounds/hit test 与 lifecycle。固定代码
-commit `15844cd51015ee7441f83ac56f690bc21011210c` 的 clean local gates 已 **Verified**；hosted
-CI 仍为 **Pending**，不得由本 ADR 的 Accepted 状态或本地结果替代。额外 upstream
-`web-e2e` 本地尝试因三种 Playwright bundled browser 未安装而在 launch 前失败，没有执行
-product assertion；该环境限制不是实现失败，也不能记作测试通过。
+commit `15844cd51015ee7441f83ac56f690bc21011210c` 的 clean local gates 已 **Verified**。PR
+[#6](https://github.com/anantheparty/MagicBlackboard/pull/6) 的
+[workflow run 31623248572](https://github.com/anantheparty/MagicBlackboard/actions/runs/31623248572)
+也在 exact head `6d980e2a76bc42f6ce8ea853dd792a69394ab810` **Verified**：macOS
+foundation job `94203061929` PASS，Linux job `94203061818` PASS。额外 upstream `web-e2e`
+本地尝试因三种 Playwright bundled browser 未安装而在 launch 前失败，没有执行 product
+assertion；Linux hosted job 安装 Playwright browsers 后通过 affected E2E，补齐的是该本地
+环境限制，不是物理设备或 Safari 兼容性证据。
 
 Safari、iPad/Pencil、desktop tablet、实体 mouse、touch 和真实 PWA 的命名设备矩阵全部
 **Not run**。synthetic handler/frame/long-task/memory 数据只比较浏览器代码路径，不能证明

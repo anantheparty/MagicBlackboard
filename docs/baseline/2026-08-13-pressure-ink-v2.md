@@ -2,8 +2,8 @@
 
 本文件分别记录实现期间的 pre-final iteration evidence，以及固定代码 commit
 `15844cd51015ee7441f83ac56f690bc21011210c` 上的最终本地自动证据。预最终结果仍保留历史
-边界；只有“最终 fixed-commit local gate”一节可用于本地 release evidence。hosted CI 与物理
-设备矩阵仍未完成。
+边界；只有“最终 fixed-commit local gate”一节可用于本地 release evidence。hosted CI 已完成；
+物理设备矩阵仍未完成。
 
 ## 证据头
 
@@ -12,7 +12,8 @@
 - Pressure Ink V2 实现提交：`b3c992f`
 - Pressure Ink V2 固定代码 commit：`15844cd51015ee7441f83ac56f690bc21011210c`
 - final gate 前 worktree：**clean**
-- hosted CI head/run：**Pending**
+- hosted CI：**Verified**；PR #6，workflow run `31623248572`，event `pull_request`，exact head
+  `6d980e2a76bc42f6ce8ea853dd792a69394ab810`
 - OS/architecture：macOS `15.5 (24F74)`，Apple Silicon/arm64
 - Node/npm：Node `20.20.2`，npm `10.8.2`，命令显式使用
   `PATH=/opt/homebrew/opt/node@20/bin:$PATH`
@@ -186,8 +187,8 @@ PATH=/opt/homebrew/opt/node@20/bin:$PATH \
 该命令 exit 1，wall 2.75s。upstream web config 不读取只由 Magic config 支持的 system-Chrome
 flag，因此 Chromium、Firefox、WebKit 3/3 project 都在 launch 前分别因缺少 Playwright cached
 `chromium_headless_shell-1217`、`firefox-1511`、`webkit-2272` 而失败，没有执行任何 product
-assertion。它是明确的本地环境限制，不记作 assertion failure，也不虚构为通过；hosted CI 会
-安装 bundled browsers 后运行。
+assertion。它是明确的本地环境限制，不记作 assertion failure，也不虚构为本地通过；后续
+hosted Linux job 安装 Playwright browsers 后通过 affected E2E，托管结果见下文。
 
 ### 最终 synthetic benchmark（3 + 3）
 
@@ -228,7 +229,22 @@ gap，但同一 run 的 long-task summary 为 0；因此只能记录为调度/�
 marker、个人绝对路径与真实数据；diff check 通过，未发现命中，fixture/benchmark 均为
 synthetic。扫描结果不构成永久安全保证，但这是本次 push 前实际执行的检查。
 
-hosted Linux/macOS CI head/run：**Pending**。不得预填 run ID、URL、head SHA 或成功状态。
+## Hosted CI（Verified）
+
+- PR：[#6](https://github.com/anantheparty/MagicBlackboard/pull/6)
+- Workflow：
+  [run 31623248572](https://github.com/anantheparty/MagicBlackboard/actions/runs/31623248572)
+- Event：`pull_request`
+- Exact head：`6d980e2a76bc42f6ce8ea853dd792a69394ab810`
+- macOS foundation job `94203061929`：**PASS**，1m35s；checkout、setup、`npm ci`、lint、
+  format、workspace test/build 与 Magic target 均通过。
+- Linux job `94203061818`：**PASS**，2m49s；checkout、setup、`npm ci`、Nx set shas、
+  Playwright browser install、lint、format、affected test/build 与 affected E2E 均通过。
+
+Linux job 在安装 Playwright browsers 后运行并通过 affected E2E，因此补齐了本机 upstream
+`web-e2e` 因 bundled Chromium/Firefox/WebKit 未安装而无法 launch 的环境限制。它验证的是
+托管 Linux 浏览器自动路径，不是物理 Safari、Apple Pencil、pen tablet、真实 touch 或 PWA
+证据；这些平台状态仍保持 **Not run / Unverified**。
 
 ## 手工与平台状态
 
@@ -242,5 +258,5 @@ hosted Linux/macOS CI head/run：**Pending**。不得预填 run ID、URL、head 
 - Apple Pencil、tablet、Safari、touch、PWA compatibility：**Unverified**
 - Continue Web/PWA vs native PencilKit comparison：**Unverified**
 
-下一阶段只有在最终自动门禁完成后才进入命名硬件矩阵；simulated implementation 不能改变
-上述状态。
+simulated/browser implementation automated gate 已完成；下一阶段是命名硬件矩阵。
+simulated implementation 和 hosted CI 都不能改变上述物理平台状态。
