@@ -1,13 +1,15 @@
 # ADR 0001 — Pressure Ink V2 数据与边界
 
 - 决策状态：**Accepted**
-- 实现状态：**Implemented at `b3c992f`; final fixed-commit verification Pending**
+- 实现状态：**Implemented; local automated gates Verified at
+  `15844cd51015ee7441f83ac56f690bc21011210c`; hosted CI Pending**
 - 决策日期：2026-08-12
 - 实现更新：2026-08-13
 - 适用范围：Pressure Ink V2 simulated implementation
 - 关联工作单：[`../../prompts/03_PRESSURE_INK_V2.md`](../../prompts/03_PRESSURE_INK_V2.md)
 - 入口证据：[`../baseline/2026-08-12-pressure-ink-v2.md`](../baseline/2026-08-12-pressure-ink-v2.md)
-- 实现/待补最终证据：[`../baseline/2026-08-13-pressure-ink-v2.md`](../baseline/2026-08-13-pressure-ink-v2.md)
+- 实现/最终本地证据：[`../baseline/2026-08-13-pressure-ink-v2.md`](../baseline/2026-08-13-pressure-ink-v2.md)
+- 最终 synthetic benchmark JSON：[`../baseline/2026-08-13-pressure-ink-v2-benchmarks.json`](../baseline/2026-08-13-pressure-ink-v2-benchmarks.json)
 
 ## 背景
 
@@ -138,9 +140,11 @@ variable renderer，必须先定义现有 valid-v1 文件的降级/迁移策略�
 ## 验证门
 
 实现及对应自动回归已覆盖 legacy、missing/malformed/unknown-version、valid v1、feature-off、
-`apps/web` compatibility、round trip、persistence、bounds/hit test 与 lifecycle。它们在
-实现提交中是 **Implemented**；最终固定 commit 的 clean gates 与 hosted CI 仍为
-**Pending**，不得由本 ADR 的 Accepted 状态替代。
+`apps/web` compatibility、round trip、persistence、bounds/hit test 与 lifecycle。固定代码
+commit `15844cd51015ee7441f83ac56f690bc21011210c` 的 clean local gates 已 **Verified**；hosted
+CI 仍为 **Pending**，不得由本 ADR 的 Accepted 状态或本地结果替代。额外 upstream
+`web-e2e` 本地尝试因三种 Playwright bundled browser 未安装而在 launch 前失败，没有执行
+product assertion；该环境限制不是实现失败，也不能记作测试通过。
 
 Safari、iPad/Pencil、desktop tablet、实体 mouse、touch 和真实 PWA 的命名设备矩阵全部
 **Not run**。synthetic handler/frame/long-task/memory 数据只比较浏览器代码路径，不能证明

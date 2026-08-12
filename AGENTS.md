@@ -13,16 +13,17 @@ signals are uncertain evidence, not facts about a person.
 
 The local-first whiteboard Foundation was merged at
 `21cc3a9abbd5f28999c7e44fe03c8b69fe9ae0d4`. The **Pressure Ink V2 simulated/browser
-implementation is committed at `b3c992f`**, with final fixed-commit local gates and hosted CI still
-to be recorded. It provides a default-off, backward-compatible variable-width path
-and separately controlled, bounded development diagnostics. Simulation verifies code paths only;
-it is never evidence of Apple Pencil, pen-tablet, Safari, touch, or PWA hardware support. Those
-platform conclusions remain **Unverified** until the named-device matrix is run.
+implementation is committed**, and its final fixed-code commit
+`15844cd51015ee7441f83ac56f690bc21011210c` has passed the recorded local automated gates. Hosted
+CI is still **Pending**. The implementation provides a default-off, backward-compatible
+variable-width path and separately controlled, bounded development diagnostics. Simulation verifies
+code paths only; it is never evidence of Apple Pencil, pen-tablet, Safari, touch, or PWA hardware
+support. Those platform conclusions remain **Unverified** until the named-device matrix is run.
 
 Pressure Ink V2 does **not** include model calls, intent inference, actor automation,
 collaboration, WebSockets, Electron, hybrid wrappers, PencilKit, or native iPad code. Both ink
-features are unavailable in production builds. The next gate is final automated evidence followed
-by named physical-device testing; unavailable features must remain behavior-neutral and labelled as
+features are unavailable in production builds. The next gate is hosted CI followed by named
+physical-device testing; unavailable features must remain behavior-neutral and labelled as
 unavailable.
 
 Read these before changing the repository:
@@ -35,9 +36,9 @@ Read these before changing the repository:
 6. `docs/05_ACCEPTANCE_CRITERIA.md` — historical Foundation completion evidence and unverified manual items.
 7. The nearest source, tests, `project.json`, and package README for the area being changed.
 
-The pressure prompt's simulated/browser implementation gate has been satisfied in code. Its final
-fixed-commit/hosted evidence and physical-device acceptance gate have not yet been recorded. Do not
-silently turn automated or simulated evidence into a hardware compatibility claim.
+The pressure prompt's simulated/browser implementation and fixed-commit local automated gates have
+been satisfied. Its hosted CI and physical-device acceptance gate have not yet been recorded. Do
+not silently turn automated or simulated evidence into a hardware compatibility claim.
 
 ## Repository map and dependency direction
 

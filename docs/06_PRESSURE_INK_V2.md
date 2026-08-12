@@ -1,21 +1,24 @@
 # 06 — Pressure Ink V2 实现与验收
 
-- 当前阶段：**Pressure Ink V2 simulated/browser implementation committed at `b3c992f`**
+- 当前阶段：**Pressure Ink V2 local automated gates verified at
+  `15844cd51015ee7441f83ac56f690bc21011210c`**
 - 功能实现：**Implemented**
-- 最终固定 commit 本地门禁：**Pending**
+- 最终固定代码 commit 本地门禁：**Verified**
 - Pressure Ink V2 hosted CI：**Pending**
 - 硬件兼容：**Not run**
 - 平台结论：**Unverified**
 - 更新日期：2026-08-13
 
-本文件区分三类事实：代码和自动回归已经存在；最终 commit 上的完整本地门禁与 hosted CI
-仍待记录；Safari、iPad、Apple Pencil、数位板、真实 touch 和 PWA 仍未运行。maintainer
-授权的是可回放、默认关闭的浏览器实现，不是硬件豁免或兼容性声明。
+本文件区分三类事实：代码和固定 commit 本地自动门禁已经验证；hosted CI 仍待记录；
+Safari、iPad、Apple Pencil、数位板、真实 touch 和 PWA 仍未运行。maintainer 授权的是可回放、
+默认关闭的浏览器实现，不是硬件豁免或兼容性声明。
 
 Foundation 入口证据仍在
 [`baseline/2026-08-12-pressure-ink-v2.md`](./baseline/2026-08-12-pressure-ink-v2.md)；本轮
-实现提交、预最终运行和仍待填写的最终证据见
-[`baseline/2026-08-13-pressure-ink-v2.md`](./baseline/2026-08-13-pressure-ink-v2.md)。
+实现提交、预最终运行和最终本地证据见
+[`baseline/2026-08-13-pressure-ink-v2.md`](./baseline/2026-08-13-pressure-ink-v2.md)；六次最终
+synthetic benchmark 的完整 summary JSON 见
+[`baseline/2026-08-13-pressure-ink-v2-benchmarks.json`](./baseline/2026-08-13-pressure-ink-v2-benchmarks.json)。
 
 ## 已实现范围
 
@@ -109,14 +112,14 @@ benchmark 只使用 synthetic 内容；没有新增 AI SDK、provider、API key�
   `Transforms.setNode` 和旧 serializer 保留未知字段。该证据说明这个具体旧消费者可忽略该
   additive field；不是所有旧客户端的普遍保证。临时 checkout 的独立 TypeScript 命令因其
   既有 SCSS/Vite 配置问题失败，未被写成通过。
-- 迭代期 focused/full test 与 synthetic benchmark 已产生预最终结果，但后续仍有代码
-  修订；它们只能用于迭代。最终固定 commit 的 clean gates 和 hosted CI 必须补录后才能把
-  release gate 标为 Verified。
+- 固定代码 commit `15844cd51015ee7441f83ac56f690bc21011210c` 在 clean worktree 上通过本地
+  install、lint、format、301 tests、build、typecheck、20 个 direct TypeScript config、Magic
+  system-Chrome E2E 5/5、production dependency audit 与两种 mode 各三次 benchmark。完整命令、
+  duration、warning 和限制保存在本轮 baseline。hosted CI 仍为 **Pending**。
 
 ## 自动验收状态
 
-以下测试/实现覆盖已经存在；勾选表示 **Implemented with automated coverage**，不代表最终
-固定 commit 的 release gate 已完成：
+以下测试/实现覆盖已经存在；勾选表示固定代码 commit 上已有自动覆盖，仍不代表硬件兼容：
 
 - [x] sample validation、coalesced parent fallback、monotonic ordering、dedupe 与 hostile getter。
 - [x] capability evidence window、`0.5` fallback、mouse/touch/unknown 与 variable pen 分支。
@@ -130,13 +133,17 @@ benchmark 只使用 synthetic 内容；没有新增 AI SDK、provider、API key�
 - [x] file/image preflight limits、v1/web envelope 与 supported schema、Safari FileReader failure paths。
 - [x] legacy 和 simulated-pressure 两种 benchmark 均在没有真实落盘目标 stroke 时 fail hard。
 
-仍待完成的 release evidence：
+release evidence：
 
-- [ ] 在最终固定 commit 记录 `npm ci`、lint、format check、uncached workspace tests/build、
+- [x] 在固定代码 commit 记录 `npm ci`、lint、format check、uncached workspace tests/build、
       Magic targets 和 system-Chrome E2E 的命令、退出码、日期与 warning。
-- [ ] 在相同最终 commit 重新运行 legacy 与 simulated-pressure benchmark，保留原始 JSON、
-      方法和局限。
+- [x] 在相同固定代码 commit 重新运行 legacy 与 simulated-pressure benchmark 各三次，保留
+      完整 summary JSON、方法和局限。
 - [ ] 推送后记录 Pressure Ink V2 hosted Linux/macOS CI 的 run、head SHA 与结果。
+
+额外尝试 upstream `web-e2e` 时，其 Chromium、Firefox、WebKit 三个 project 都在 launch 前因
+本机未安装对应 Playwright bundled browser 而失败，没有执行 product assertion。这个本地环境
+限制被原样保留，不能写作测试通过；hosted CI 会安装浏览器后运行该矩阵。
 
 ## 物理设备与平台停止条件
 
@@ -150,8 +157,8 @@ PointerEvent 自动勾选：
 - 命名 PC/macOS 数位板及其 driver；
 - 共享 origin、真实 subpath、offline/update/旧 cache/client-route/install 等 PWA 场景。
 
-命名矩阵见 [`03_PLATFORM_STRATEGY.md`](./03_PLATFORM_STRATEGY.md)。完成最终自动门禁后，下
-一步需要 maintainer 提供或采购明确型号的 iPad/Apple Pencil 与 desktop tablet，并按同一
-任务记录 OS、浏览器、driver、capability、fallback、p50/p95、long tasks、丢点、误触与主观
-问题。在此之前，输出仍是 **Unverified**，既不是 **Continue Web/PWA**，也不是 **Run native
+命名矩阵见 [`03_PLATFORM_STRATEGY.md`](./03_PLATFORM_STRATEGY.md)。hosted CI 完成后，下
+一步需要 maintainer 提供或采购明确型号的 iPad/Apple Pencil 与 desktop tablet，并按同一任务
+记录 OS、浏览器、driver、capability、fallback、p50/p95、long tasks、丢点、误触与主观问题。
+在此之前，输出仍是 **Unverified**，既不是 **Continue Web/PWA**，也不是 **Run native
 PencilKit comparison spike**。

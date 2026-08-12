@@ -1,17 +1,17 @@
 # Pressure Ink V2 simulated implementation — 2026-08-13
 
-本文件记录实现提交、迭代期间真实运行过的预最终命令，以及最终验收必须补填的
-位置。除明确写作 Foundation/old-consumer evidence 的部分外，下面的自动结果发生在 dirty
-working tree，且结果后仍有 schema/lifecycle/resource-cleanup 改动；因此它们是 **pre-final
-iteration evidence**，不是最终固定 commit 的 release evidence。
+本文件分别记录实现期间的 pre-final iteration evidence，以及固定代码 commit
+`15844cd51015ee7441f83ac56f690bc21011210c` 上的最终本地自动证据。预最终结果仍保留历史
+边界；只有“最终 fixed-commit local gate”一节可用于本地 release evidence。hosted CI 与物理
+设备矩阵仍未完成。
 
 ## 证据头
 
 - 日期/时区：2026-08-13，Asia/Tokyo
 - 分支：`agent/pressure-ink-v2`
-- Pressure Ink V2 实现提交：`b3c992f`（完整 SHA 在最终门禁后补录）
-- Pressure Ink V2 最终 commit：**Pending**
-- final gate 前 worktree：**Pending**
+- Pressure Ink V2 实现提交：`b3c992f`
+- Pressure Ink V2 固定代码 commit：`15844cd51015ee7441f83ac56f690bc21011210c`
+- final gate 前 worktree：**clean**
 - hosted CI head/run：**Pending**
 - OS/architecture：macOS `15.5 (24F74)`，Apple Silicon/arm64
 - Node/npm：Node `20.20.2`，npm `10.8.2`，命令显式使用
@@ -20,7 +20,7 @@ iteration evidence**，不是最终固定 commit 的 release evidence。
 - system Chrome：`151.0.7922.109`
 - physical device/browser/driver：**Not run**
 
-## Working-tree 实现摘要
+## 实现摘要
 
 - exact optional `ink: { version: 1, widths }`，保留 legacy `points`/`strokeWidth`；generated
   widths 量化到 2 位，但 importer 接受范围内任意有限小数。
@@ -113,28 +113,122 @@ PATH=/opt/homebrew/opt/node@20/bin:$PATH \
 刷新率和系统负载影响 frame；这些 event 没有 driver、palm rejection、真实 coalescing 或
 硬件采样。数值不能外推到 Safari、iPad、Apple Pencil、数位板、touch 或 PWA。
 
-## 最终 fixed-commit gate（Pending）
+## 最终 fixed-commit local gate（Verified）
 
-最终代码和文档 freeze 后必须追加，不得预填成功：
+以下命令在固定代码 commit `15844cd51015ee7441f83ac56f690bc21011210c` 上运行；开始前
+worktree clean。环境为 macOS `15.5 (24F74)` arm64、Node `20.20.2`、npm `10.8.2`、system
+Chrome `151.0.7922.109`。除表内另有说明，命令均显式使用
+`PATH=/opt/homebrew/opt/node@20/bin:$PATH`。
 
-```text
-Commit: Pending
-Dirty worktree before run: Pending
-npm ci: Not run on final commit
-npm run lint: Not run on final commit
-npm run format:check: Not run on final commit
-npm test -- --skip-nx-cache: Not run on final commit
-npm run build -- --skip-nx-cache: Not run on final commit
-Magic app build/typecheck: Not run on final commit
-Pressure Ink E2E with system Chrome: Not run on final commit
-legacy benchmark repetitions: Not run on final commit
-simulated-pressure benchmark repetitions: Not run on final commit
-public-repo staged diff/filename/secret scan: Not run on final commit
-hosted Linux/macOS CI head/run: Not run
+| 命令/范围 | 结果 | duration / warning |
+| --- | --- | --- |
+| `npm ci` | **Verified**，exit 0；added 1,182 / audited 1,183 | 18.20s；保留 dependency deprecation warnings；完整 dev tree 为 45 项 audit finding |
+| `npm run lint` | **Verified**，exit 0 | 0.63s |
+| `npm run format:check` | **Verified**，exit 0；284 files | 1.19s，其中 formatter 170ms |
+| `npm test -- --skip-nx-cache` | **Verified**，exit 0；9 projects / 301 tests | 12.43s；core 17、react-text 1、react-board 10、runtime 6、plait 13、console 7、drawnix 171、web 1、app 75 |
+| `npm run build -- --skip-nx-cache` | **Verified**，exit 0；9/9 projects | 8.86s；保留 chunk-size warning，见下文 |
+| `npm exec nx -- run-many -t typecheck --all --skip-nx-cache --parallel=3` | **Verified**，exit 0；9/9 projects | 5.72s |
+| 下列 20 个 direct `tsc --noEmit` config | **Verified**，exit 0；20/20 | 24.12s |
+| `npm run build:magic -- --skip-nx-cache` | **Verified**，exit 0 | 9.04s；保留 Magic chunk-size warning |
+| `PLAYWRIGHT_USE_SYSTEM_CHROME=1 npm exec nx -- e2e magic-blackboard-e2e --workers=1 --skip-nx-cache` | **Verified**，exit 0；5/5 | wall 7.54s；Playwright 5.8s |
+| `npm audit --omit=dev` | **Verified**，exit 0；0 production vulnerabilities | 只说明 production dependency 集合 |
+| `npm audit` | exit 1；45 findings：2 low / 26 moderate / 17 high / 0 critical | 完整 dev tree 的已知结果，不能用 production audit 隐去 |
+| `npm ls @xhmikosr/decompress dompurify js-cookie mermaid uuid --all` | **Verified**，exit 0 | `@xhmikosr/decompress` 10.2.1、`mermaid` 10.9.8、`dompurify` 3.4.13、`uuid` 11.1.1、`js-cookie` 3.0.8 |
+
+test 输出保留了 `MaxListenersExceededWarning`、`NO_COLOR` 与 jsdom canvas `getContext`
+informational warning；没有把 warning 隐去或改写成失败。workspace build 的大 chunk warning
+为：web `533.86 / 1,105.57 / 1,443.12 KiB`，Magic
+`533.86 / 1,171.61 / 1,443.12 KiB`。dedicated Magic build 也保留同一 Magic warning。
+
+direct TypeScript gate 的精确 shell 为：
+
+```bash
+set -e
+for cfg in \
+  apps/magic-blackboard/tsconfig.app.json \
+  apps/magic-blackboard/tsconfig.spec.json \
+  apps/web/tsconfig.app.json \
+  apps/web/tsconfig.spec.json \
+  apps/magic-blackboard-e2e/tsconfig.json \
+  apps/web-e2e/tsconfig.json \
+  packages/drawnix/tsconfig.lib.json \
+  packages/drawnix/tsconfig.spec.json \
+  packages/magic-console/tsconfig.lib.json \
+  packages/magic-console/tsconfig.spec.json \
+  packages/magic-core/tsconfig.lib.json \
+  packages/magic-core/tsconfig.spec.json \
+  packages/magic-plait/tsconfig.lib.json \
+  packages/magic-plait/tsconfig.spec.json \
+  packages/magic-runtime/tsconfig.lib.json \
+  packages/magic-runtime/tsconfig.spec.json \
+  packages/react-board/tsconfig.lib.json \
+  packages/react-board/tsconfig.spec.json \
+  packages/react-text/tsconfig.lib.json \
+  packages/react-text/tsconfig.spec.json
+do
+  PATH=/opt/homebrew/opt/node@20/bin:$PATH npm exec tsc -- --noEmit -p "$cfg"
+  echo "PASS $cfg"
+done
 ```
 
-记录真实 command、exit code、duration、suite count、browser version、meaningful warning 和
-hosted run URL/ID；若失败，保留失败并修复后另加一行，不得覆盖历史。
+Magic system-Chrome E2E 的五个 assertion 为 Strict Mode features、context reload、legacy
+freehand reload、simulated-pressure rerender/reload 和 valid-v1 import。它们验证 synthetic
+browser path，不是 Safari 或硬件测试。
+
+额外运行：
+
+```bash
+PATH=/opt/homebrew/opt/node@20/bin:$PATH \
+  PLAYWRIGHT_USE_SYSTEM_CHROME=1 \
+  npm exec nx -- e2e web-e2e --workers=1 --skip-nx-cache
+```
+
+该命令 exit 1，wall 2.75s。upstream web config 不读取只由 Magic config 支持的 system-Chrome
+flag，因此 Chromium、Firefox、WebKit 3/3 project 都在 launch 前分别因缺少 Playwright cached
+`chromium_headless_shell-1217`、`firefox-1511`、`webkit-2272` 而失败，没有执行任何 product
+assertion。它是明确的本地环境限制，不记作 assertion failure，也不虚构为通过；hosted CI 会
+安装 bundled browsers 后运行。
+
+### 最终 synthetic benchmark（3 + 3）
+
+命令使用 dev server `http://127.0.0.1:7300`、system Chrome、默认 10,000ms，每种 mode 连续
+运行三次。六次完整 summary 原始 JSON 保存在
+[`2026-08-13-pressure-ink-v2-benchmarks.json`](./2026-08-13-pressure-ink-v2-benchmarks.json)。
+
+```bash
+PATH=/opt/homebrew/opt/node@20/bin:$PATH \
+  npm exec nx -- serve magic-blackboard --host=127.0.0.1 --port=7300
+
+PATH=/opt/homebrew/opt/node@20/bin:$PATH \
+  PLAYWRIGHT_USE_SYSTEM_CHROME=1 \
+  INK_BENCHMARK_MODE=legacy node scripts/benchmark-ink.mjs
+
+PATH=/opt/homebrew/opt/node@20/bin:$PATH \
+  PLAYWRIGHT_USE_SYSTEM_CHROME=1 \
+  INK_BENCHMARK_MODE=simulated-pressure node scripts/benchmark-ink.mjs
+```
+
+| Mode / run | moves | dispatch p50/p95/max (ms) | frame p50/p95/max (ms) | heap delta | long tasks | mutations | persisted result |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| legacy 1 | 601 | 0.6 / 0.9 / 1.5 | 8.3 / 10.0 / 33.6 | -643,995 B | 0 | 1,291 | 601 points；无 `ink` |
+| legacy 2 | 601 | 0.6 / 0.9 / 1.8 | 8.3 / 10.0 / 25.0 | -772,863 B | 0 | 1,291 | 601 points；无 `ink` |
+| legacy 3 | 601 | 0.5 / 0.8 / 1.6 | 8.3 / 10.1 / 33.2 | -673,119 B | 0 | 1,291 | 601 points；无 `ink` |
+| simulated-pressure 1 | 599 | 0.1 / 0.2 / 0.4 | 8.3 / 10.0 / 10.4 | +4,852,768 B | 0 | 1,239 | 1 path；3,128 points = widths；spread 2.4 |
+| simulated-pressure 2 | 599 | 0.1 / 0.2 / 0.3 | 8.3 / 10.0 / 10.4 | -525,325 B | 0 | 1,239 | 1 path；3,128 points = widths；spread 2.4 |
+| simulated-pressure 3 | 599 | 0.1 / 0.2 / 0.3 | 8.3 / 10.0 / 100.0 | +7,682,044 B | 0 | 1,229 | 1 path；3,128 points = widths；spread 2.4 |
+
+每次均为 1 rendered element、55 SVG nodes。第三次 simulated-pressure 出现单个 100ms frame
+gap，但同一 run 的 long-task summary 为 0；因此只能记录为调度/测量异常，不能把它解释成
+主线程 long task，也不能用于任何硬件结论。heap delta 未控制 GC；synthetic dispatch cost
+不是 pen-to-ink latency，且没有 driver、palm rejection、真实 coalescing 或硬件采样。
+
+### 公开仓库检查与仍待证据
+
+实现和文档提交前均检查 staged filenames、`git diff --cached --check`、敏感路径、secret
+marker、个人绝对路径与真实数据；diff check 通过，未发现命中，fixture/benchmark 均为
+synthetic。扫描结果不构成永久安全保证，但这是本次 push 前实际执行的检查。
+
+hosted Linux/macOS CI head/run：**Pending**。不得预填 run ID、URL、head SHA 或成功状态。
 
 ## 手工与平台状态
 
