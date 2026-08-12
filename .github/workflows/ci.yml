@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  main:
+  linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -41,3 +41,24 @@ jobs:
 
       - run: npx nx affected -t test build --base=$NX_BASE --head=$NX_HEAD --verbose
       - run: npx nx affected -t e2e --base=$NX_BASE --head=$NX_HEAD --parallel 1 --verbose
+
+  macos:
+    name: macOS foundation
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - run: npm ci
+      - name: Lint code
+        run: npm run lint
+      - name: Check formatting
+        run: npm run format:check
+      - name: Test workspace
+        run: npm test
+      - name: Build Magic Blackboard
+        run: npm run build:magic

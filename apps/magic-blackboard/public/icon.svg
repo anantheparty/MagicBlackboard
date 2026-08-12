@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Magic Blackboard">
+  <rect width="512" height="512" rx="112" fill="#151a17"/>
+  <path d="M102 368V144c0-23 19-42 42-42h224c23 0 42 19 42 42v224c0 23-19 42-42 42H144c-23 0-42-19-42-42Z" fill="#22372d" stroke="#d9efdf" stroke-width="18"/>
+  <path d="m178 321 65-157 37 86 27-53 33 124" fill="none" stroke="#d7f06f" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/>
+  <circle cx="243" cy="164" r="13" fill="#d7f06f"/>
+</svg>

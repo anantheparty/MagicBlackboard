@@ -1,4 +1,12 @@
-## 
+# Legacy upstream Cloudflare Pages deployment
+
+> **Not a Magic Blackboard release guide.** This inherited document deploys `apps/web`, the
+> upstream Drawnix reference app. Magic Blackboard has no reviewed public deployment pipeline in
+> the Foundation milestone; use the local commands in `README.md` instead. Do not publish from
+> these instructions until they are replaced by a product-specific build, security review, and
+> release gate.
+
+##
 
 ### 1. 打开 Cloudflare Pages
 访问：https://dash.cloudflare.com/pages

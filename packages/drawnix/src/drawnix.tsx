@@ -68,9 +68,18 @@ export type DrawnixProps = {
     exportTransparent: boolean;
   }) => void;
   onLanguageChange?: (language: Language) => void;
+  /**
+   * Product-level Plait plugins appended after Drawnix's built-in plugins.
+   *
+   * Plugins are applied once while the board is initialized. Keep this array
+   * stable for the lifetime of a mounted Drawnix instance.
+   */
+  additionalPlugins?: readonly PlaitPlugin[];
   afterInit?: (board: PlaitBoard) => void;
+  /** Render a screen-space product overlay once the board is ready. */
+  renderOverlay?: (board: PlaitBoard) => React.ReactNode;
   tutorial?: boolean;
-} & React.HTMLAttributes<HTMLDivElement>;
+} & Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'>;
 
 export type { DrawnixToolState } from './hooks/use-drawnix';
 
@@ -99,7 +108,9 @@ export const Drawnix: React.FC<DrawnixProps> = ({
   onToolStateChange,
   onPreferenceChange,
   onLanguageChange,
+  additionalPlugins = [],
   afterInit,
+  renderOverlay,
   tutorial = false,
 }) => {
   const options: PlaitBoardOptions = {
@@ -208,6 +219,7 @@ export const Drawnix: React.FC<DrawnixProps> = ({
     buildPencilPlugin(updateAppState),
     buildTextLinkPlugin(updateAppState),
     buildToolStateSyncPlugin(syncBoardPointerToToolState),
+    ...additionalPlugins,
   ];
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -269,6 +281,7 @@ export const Drawnix: React.FC<DrawnixProps> = ({
             <CleanConfirm container={containerRef.current}></CleanConfirm>
             <Toast toast={toast} container={containerRef.current}></Toast>
           </Wrapper>
+          {board && renderOverlay?.(board)}
           <canvas className={`${LASER_POINTER_CLASS_NAME} mouse-course-hidden`}></canvas>
         </div>
       </DrawnixContext.Provider>

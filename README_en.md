@@ -1,3 +1,39 @@
+# Magic Blackboard
+
+Magic Blackboard is a local-first infinite canvas for teaching and learning. The current Foundation milestone establishes a reliable whiteboard, explicit context input, persistence, per-board runtime boundaries, and development diagnostics. Intent recognition, model calls, Actors, and pressure-sensitive ink are not implemented yet.
+
+The first product route is responsive Web/PWA so one implementation can be tested on desktop browsers and iPad Safari. It runs without an API key, account, or backend.
+
+## Quick start
+
+Use Node `20.20.2` and npm `10.8.2` (see `.nvmrc` and the root `package.json`):
+
+```bash
+npm ci
+npm run start:magic
+```
+
+Open the local URL printed in the terminal. In development, press `Cmd/Ctrl + Shift + D` to open Magic Console.
+
+```bash
+npm run test:magic
+npm run build:magic
+npm run lint
+npm run format:check
+```
+
+Start with [`docs/README.md`](docs/README.md) for decisions, architecture, platform and model boundaries, and acceptance evidence. Read [`AGENTS.md`](AGENTS.md), [`SECURITY.md`](SECURITY.md), and [`NOTICE.md`](NOTICE.md) before contributing. Never commit API keys, real classroom content, or user data to this public repository.
+
+The next work order is [`prompts/03_PRESSURE_INK_V2.md`](prompts/03_PRESSURE_INK_V2.md); it is intentionally not executed during Foundation.
+
+Foundation currently supports local development only. Inherited container/package publication is fail-closed and the app is not declared hosted or production-ready.
+
+---
+
+## Upstream Drawnix reference
+
+This repository is derived from the MIT-licensed `plait-board/drawnix` project and preserves its reference app, history, and original notes below. See [`NOTICE.md`](NOTICE.md) for the exact baseline and attribution.
+
 <p align="center">
   <picture style="width: 320px">
     <source media="(prefers-color-scheme: light)" srcset="https://github.com/plait-board/drawnix/blob/develop/apps/web/public/logo/logo_drawnix_h.svg?raw=true" />

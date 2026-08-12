@@ -4,13 +4,15 @@ import './stack.scss';
 import React, { forwardRef } from 'react';
 import clsx from 'classnames';
 
+type StackStyle = React.CSSProperties;
+
 type StackProps = {
   children: React.ReactNode;
   gap?: number;
   align?: 'start' | 'center' | 'end' | 'baseline';
   justifyContent?: 'center' | 'space-around' | 'space-between';
   className?: string | boolean;
-  style?: React.CSSProperties;
+  style?: StackStyle;
   ref: React.RefObject<HTMLDivElement>;
 };
 
@@ -22,12 +24,14 @@ const RowStack = forwardRef(
     return (
       <div
         className={clsx('stack stack_horizontal', className)}
-        style={{
-          '--gap': gap,
-          alignItems: align,
-          justifyContent,
-          ...style,
-        }}
+        style={
+          {
+            '--gap': gap,
+            alignItems: align,
+            justifyContent,
+            ...style,
+          } as StackStyle
+        }
         ref={ref}
       >
         {children}
@@ -44,12 +48,14 @@ const ColStack = forwardRef(
     return (
       <div
         className={clsx('stack stack_vertical', className)}
-        style={{
-          '--gap': gap,
-          justifyItems: align,
-          justifyContent,
-          ...style,
-        }}
+        style={
+          {
+            '--gap': gap,
+            justifyItems: align,
+            justifyContent,
+            ...style,
+          } as StackStyle
+        }
         ref={ref}
       >
         {children}

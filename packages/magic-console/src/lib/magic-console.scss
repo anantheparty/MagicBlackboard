@@ -1,0 +1,152 @@
+.magic-console {
+  position: absolute;
+  z-index: 50;
+  inset: 0 0 0 auto;
+  width: min(var(--magic-console-width), calc(100vw - 80px));
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  color: #e8efe9;
+  background: color-mix(in srgb, #111713 96%, transparent);
+  border-left: 1px solid #3c4840;
+  box-shadow: -18px 0 50px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(18px);
+  font-size: 13px;
+}
+
+.magic-console__resize {
+  position: absolute;
+  inset: 0 auto 0 -5px;
+  width: 10px;
+  cursor: ew-resize;
+  border: 0;
+  background: transparent;
+  touch-action: none;
+}
+
+.magic-console__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #303a33;
+}
+
+.magic-console__header > div,
+.magic-console__feature span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.magic-console small {
+  overflow: hidden;
+  color: #95a39a;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.magic-console button {
+  color: inherit;
+}
+
+.magic-console__header > button {
+  width: 32px;
+  height: 32px;
+  font-size: 24px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.magic-console__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid #303a33;
+}
+
+.magic-console__tabs button {
+  flex: none;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #aab5ad;
+  font-size: 11px;
+}
+
+.magic-console__tabs button.is-active {
+  color: #182016;
+  background: #d7f06f;
+}
+
+.magic-console__content {
+  padding: 14px;
+  overflow: auto;
+}
+
+.magic-console__content dl,
+.magic-console__content pre {
+  margin: 0;
+}
+
+.magic-console__content pre {
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.magic-console__row,
+.magic-console__feature {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #29312c;
+}
+
+.magic-console__row dt {
+  color: #95a39a;
+}
+
+.magic-console__row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.magic-console__feature {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.magic-console__feature small {
+  white-space: normal;
+}
+
+.magic-console__empty {
+  padding: 16px;
+  color: #95a39a;
+  line-height: 1.5;
+  border: 1px dashed #405047;
+  border-radius: 10px;
+}
+
+.magic-console__events {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.magic-console__events li {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #1b241e;
+}

@@ -1,0 +1,9 @@
+{
+  "name": "magic-blackboard-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/magic-blackboard-e2e/src",
+  "implicitDependencies": ["magic-blackboard"],
+  "tags": ["scope:magic", "type:e2e"],
+  "targets": {}
+}
