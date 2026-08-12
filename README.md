@@ -1,3 +1,50 @@
+# Magic Blackboard
+
+Magic Blackboard 是一个面向教学与学习的、本地优先的无限黑板。当前 Foundation 版本先把可靠白板、上下文显式输入、持久化、运行时边界和开发诊断搭稳；意图识别、模型调用、Actor 和压感笔迹尚未实现。
+
+第一条开发路线是响应式 Web/PWA：同一套代码优先覆盖桌面浏览器与 iPad Safari，并在后续用真实 iPad + Apple Pencil 做能力门槛验证。项目在没有 API key、账号或后端的情况下即可运行。
+
+## 快速开始
+
+需要 Node `20.20.2` 与 npm `10.8.2`（见 `.nvmrc` 和根 `package.json`）：
+
+```bash
+npm ci
+npm run start:magic
+```
+
+打开终端显示的本地地址。开发环境中按 `Cmd/Ctrl + Shift + D` 可打开 Magic Console。
+
+常用质量命令：
+
+```bash
+npm run test:magic
+npm run build:magic
+npm run lint
+npm run format:check
+```
+
+## 当前结构与文档
+
+- `apps/magic-blackboard`：Magic Blackboard 产品 App 与四个独立 localforage 命名空间。
+- `packages/magic-core`：无 React/DOM/Plait 依赖的事件、feature、settings 与未来智能接口。
+- `packages/magic-plait`：Plait Canvas Adapter。
+- `packages/magic-runtime`：每块 board 独立的 runtime 与生命周期。
+- `packages/magic-console`：仅开发诊断，不参与白板正确性。
+- `apps/web`：保留的上游 Drawnix 回归参考 App。
+
+从 [`docs/README.md`](docs/README.md) 阅读决策、架构、平台路线、模型接入边界和验收记录。贡献前请阅读 [`AGENTS.md`](AGENTS.md)、[`SECURITY.md`](SECURITY.md) 与 [`NOTICE.md`](NOTICE.md)。公开仓库不得提交 API key、真实课堂内容或用户数据。
+
+下一阶段工作单是 [`prompts/03_PRESSURE_INK_V2.md`](prompts/03_PRESSURE_INK_V2.md)，Foundation 阶段不会执行它。
+
+Foundation 目前只支持本地开发；继承的容器/包发布入口已 fail-closed 禁用，尚未声明 hosted/production-ready。
+
+---
+
+## 上游 Drawnix 参考说明
+
+本仓库基于 `plait-board/drawnix` 的 MIT 版本建立，并保留原始白板 App、历史与以下上游说明。确切 baseline 和归属见 [`NOTICE.md`](NOTICE.md)。
+
 <p align="center">
   <picture style="width: 320px">
     <source media="(prefers-color-scheme: light)" srcset="https://github.com/plait-board/drawnix/blob/develop/apps/web/public/logo/logo_drawnix_h.svg?raw=true" />
