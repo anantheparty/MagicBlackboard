@@ -5,14 +5,17 @@
   "license": "MIT",
   "scripts": {
     "start": "nx serve web --host=0.0.0.0",
+    "start:magic": "nx serve magic-blackboard --host=0.0.0.0",
     "build": "nx run-many -t=build",
+    "build:magic": "nx build magic-blackboard",
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "build:web": "nx build web",
     "test": "nx run-many -t=test",
-    "release": "node scripts/release-version.js",
-    "pub": "npm run build && node scripts/publish.js"
+    "test:magic": "nx run-many -t=test -p magic-core magic-runtime magic-plait magic-console magic-blackboard",
+    "release": "node -e \"throw new Error('Disabled: Magic Blackboard has no release pipeline yet.')\"",
+    "pub": "node -e \"throw new Error('Disabled: upstream package publication is not a Magic release.')\""
   },
   "dependencies": {
     "@floating-ui/react": "^0.26.24",
@@ -76,5 +79,17 @@
     "vite": "^8.0.16",
     "vite-plugin-dts": "^4.5.3",
     "vitest": "^4.1.9"
-  }
+  },
+  "overrides": {
+    "@xhmikosr/decompress": "11.1.4",
+    "dompurify": "3.4.13",
+    "js-cookie": "3.0.8",
+    "mermaid": "10.9.8",
+    "uuid": "11.1.1"
+  },
+  "engines": {
+    "node": "20.20.2",
+    "npm": "10.8.2"
+  },
+  "packageManager": "npm@10.8.2"
 }

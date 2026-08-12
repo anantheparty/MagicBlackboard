@@ -1,5 +1,8 @@
 FROM node:20 AS builder 
 
+# LEGACY UPSTREAM IMAGE: this serves apps/web, not Magic Blackboard. The repository publish
+# workflow and release scripts intentionally do not build or push this image during Foundation.
+
 WORKDIR /builder
 
 COPY . /builder

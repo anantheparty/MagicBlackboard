@@ -1,0 +1,8 @@
+{
+  "name": "magic-blackboard",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/magic-blackboard/src",
+  "projectType": "application",
+  "tags": ["scope:magic", "type:app"],
+  "targets": {}
+}
