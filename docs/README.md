@@ -35,3 +35,8 @@
 commit、环境、完整命令、退出码和未验证项；不得把 working-tree/pre-final 结果写成最终
 fixed-commit 通过，也不得把合成 PointerEvent 或桌面浏览器结果写成物理笔、Safari/iPad 或
 PWA 验证。
+
+Pressure 自动门禁完成后的开发控制台触控入口是独立 follow-up；固定代码提交、桌面与窄屏
+Chromium 预检及门禁证据见
+[`baseline/2026-08-13-dev-console-touch-launcher.md`](./baseline/2026-08-13-dev-console-touch-launcher.md)。
+其中的 `hasTouch`、移动 UA 与窄视口均是浏览器仿真，不是物理 iPad、Safari 或真实触控证据。
