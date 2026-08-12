@@ -81,7 +81,7 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "@xhmikosr/decompress": "11.1.4",
+    "@xhmikosr/decompress": "10.2.1",
     "dompurify": "3.4.13",
     "js-cookie": "3.0.8",
     "mermaid": "10.9.8",
