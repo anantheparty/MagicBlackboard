@@ -1,0 +1,19 @@
+{
+  "name": "@magic-blackboard/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.js",
+  "module": "./index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.js",
+      "types": "./index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@magic-blackboard/core": "0.1.0",
+    "tslib": "^2.3.0"
+  }
+}

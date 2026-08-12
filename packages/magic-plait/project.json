@@ -1,0 +1,8 @@
+{
+  "name": "magic-plait",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/magic-plait/src",
+  "projectType": "library",
+  "tags": ["scope:magic-blackboard", "type:adapter"],
+  "targets": {}
+}
