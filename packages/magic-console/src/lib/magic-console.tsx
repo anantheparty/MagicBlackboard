@@ -62,6 +62,9 @@ export function MagicConsole({
   const [revision, setRevision] = useState(0);
   const [inputRevision, setInputRevision] = useState(0);
   const resizing = useRef(false);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const pendingFocus = useRef<'launcher' | 'close' | null>(null);
 
   const updateState = useCallback(
     (patch: Partial<MagicConsoleState>) => {
@@ -166,6 +169,15 @@ export function MagicConsole({
     };
   }, [available, state.open, updateState]);
 
+  useEffect(() => {
+    if (!available || pendingFocus.current === null) {
+      return;
+    }
+    const target = pendingFocus.current === 'close' ? closeRef.current : launcherRef.current;
+    pendingFocus.current = null;
+    target?.focus();
+  }, [available, state.open]);
+
   const content = useMemo(
     () => (state.open ? renderTab(state.tab, runtime) : null),
     // Revision intentionally invalidates the snapshot only while the console subscribes.
@@ -178,7 +190,22 @@ export function MagicConsole({
   }
 
   if (!state.open) {
-    return <div data-testid="magic-console-closed" hidden />;
+    return (
+      <button
+        ref={launcherRef}
+        type="button"
+        className="magic-console__launcher"
+        data-testid="magic-console-closed"
+        aria-label="Open Dev Console"
+        onClick={() => {
+          pendingFocus.current = 'close';
+          updateState({ open: true });
+        }}
+      >
+        <span aria-hidden="true">M</span>
+        Dev Console
+      </button>
+    );
   }
 
   return (
@@ -201,8 +228,12 @@ export function MagicConsole({
           <small>{runtime.id}</small>
         </div>
         <button
+          ref={closeRef}
           type="button"
-          onClick={() => updateState({ open: false })}
+          onClick={() => {
+            pendingFocus.current = 'launcher';
+            updateState({ open: false });
+          }}
           aria-label="Close console"
         >
           ×

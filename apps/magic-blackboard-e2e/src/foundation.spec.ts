@@ -66,7 +66,7 @@ test('keeps the Strict Mode board session attached and placeholders fail closed'
   await expect(page).toHaveTitle(/Magic Blackboard/);
   await expect(page.locator('.drawnix .plait-board-container')).toBeVisible();
 
-  await page.keyboard.press('Control+Shift+D');
+  await page.getByRole('button', { name: 'Open Dev Console' }).click();
   const consolePanel = page.getByRole('complementary', {
     name: 'Magic Blackboard development console',
   });
@@ -87,6 +87,52 @@ test('keeps the Strict Mode board session attached and placeholders fail closed'
   await expect(consolePanel.getByRole('checkbox', { name: 'Actor feature' })).toBeDisabled();
   await expect(consolePanel.getByText(/Unavailable in this milestone/)).toHaveCount(1);
   expect(pageErrors).toEqual([]);
+});
+
+test.describe('simulated touch viewport', () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36',
+    viewport: { width: 390, height: 844 },
+  });
+
+  test('opens and closes the development console without a hardware keyboard', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await page.goto('/');
+    await expect(page.locator('.drawnix')).toHaveClass(/drawnix--mobile/);
+    const launcher = page.getByRole('button', { name: 'Open Dev Console' });
+    await expect(launcher).toBeVisible();
+    const launcherBounds = await launcher.boundingBox();
+    expect(launcherBounds).not.toBeNull();
+    expect(launcherBounds!.width).toBeGreaterThanOrEqual(44);
+    expect(launcherBounds!.height).toBeGreaterThanOrEqual(44);
+
+    await launcher.tap();
+    const consolePanel = page.getByRole('complementary', {
+      name: 'Magic Blackboard development console',
+    });
+    await expect(consolePanel).toBeVisible();
+    await expect(consolePanel.getByText('attached', { exact: true })).toBeVisible();
+    const panelBounds = await consolePanel.boundingBox();
+    expect(panelBounds).not.toBeNull();
+    expect(panelBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(panelBounds!.x + panelBounds!.width).toBeLessThanOrEqual(390);
+
+    const close = consolePanel.getByRole('button', { name: 'Close console' });
+    const closeBounds = await close.boundingBox();
+    expect(closeBounds).not.toBeNull();
+    expect(closeBounds!.width).toBeGreaterThanOrEqual(44);
+    expect(closeBounds!.height).toBeGreaterThanOrEqual(44);
+    await close.tap();
+    await expect(consolePanel).toBeHidden();
+    await expect(launcher).toBeVisible();
+    await expect(page.locator('.drawnix .plait-board-container')).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
 });
 
 test('persists explicit context across a reload', async ({ page }) => {

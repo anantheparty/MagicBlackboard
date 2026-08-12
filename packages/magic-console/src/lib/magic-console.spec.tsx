@@ -79,6 +79,7 @@ describe('MagicConsole', () => {
     const view = render(<MagicConsole runtime={runtime} onStateChange={onStateChange} />);
 
     expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open Dev Console' })).toBeTruthy();
     expect(subscribeAll).not.toHaveBeenCalled();
 
     fireEvent.keyDown(window, { key: 'D', shiftKey: true, metaKey: true });
@@ -89,9 +90,30 @@ describe('MagicConsole', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close console' }));
     expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open Dev Console' })).toBeTruthy();
 
     view.unmount();
     expect(removeWindowListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+    runtime.dispose();
+  });
+
+  it('opens from the touch-accessible launcher and persists the state change', async () => {
+    const runtime = createMagicRuntime();
+    const onStateChange = vi.fn();
+    const view = render(<MagicConsole runtime={runtime} onStateChange={onStateChange} />);
+
+    const launcher = screen.getByRole('button', { name: 'Open Dev Console' });
+    launcher.focus();
+    fireEvent.click(launcher);
+
+    expect(await screen.findByRole('complementary')).toBeTruthy();
+    expect(onStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }));
+    expect(screen.queryByRole('button', { name: 'Open Dev Console' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close console' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close console' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open Dev Console' }));
+    view.unmount();
     runtime.dispose();
   });
 
@@ -246,6 +268,7 @@ describe('MagicConsole', () => {
     act(() => fireEvent.keyDown(window, { key: 'd', shiftKey: true, ctrlKey: true }));
 
     expect(view.container.innerHTML).toBe('');
+    expect(screen.queryByRole('button', { name: 'Open Dev Console' })).toBeNull();
     expect(addWindowListener.mock.calls.some(([type]) => type === 'keydown')).toBe(false);
     expect(subscribeInput).not.toHaveBeenCalled();
     view.unmount();
