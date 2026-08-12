@@ -74,6 +74,10 @@ const enTranslations: Translations = {
   'toast.copyToClipboard.svg': 'Copied selected items as SVG to clipboard',
   'toast.copyToClipboard.png': 'Copied selected items as PNG to clipboard',
   'toast.copyToClipboard.mode.transparent': '(Transparent background)',
+  'toast.image.insertError': 'Could not insert image',
+  'toast.image.tooLarge': 'Images must be 8 MB or smaller.',
+  'toast.file.saveError': 'Could not save the Drawnix file',
+  'toast.file.unsupportedDocument': 'The board exceeds the supported document or resource limits.',
   // Language
   'language.switcher': 'Language',
   'language.chinese': '中文',

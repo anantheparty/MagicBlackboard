@@ -81,6 +81,10 @@ const arTranslations: Translations = {
   'toast.copyToClipboard.svg': 'تم نسخ العناصر المحددة كـ SVG إلى الحافظة',
   'toast.copyToClipboard.png': 'تم نسخ العناصر المحددة كـ PNG إلى الحافظة',
   'toast.copyToClipboard.mode.transparent': '(خلفية شفافة)',
+  'toast.image.insertError': 'تعذّر إدراج الصورة',
+  'toast.image.tooLarge': 'يجب ألا يتجاوز حجم الصورة 8 ميغابايت.',
+  'toast.file.saveError': 'تعذّر حفظ ملف Drawnix',
+  'toast.file.unsupportedDocument': 'تتجاوز اللوحة حدود المستند أو الموارد المدعومة.',
 
   // Menu items
   'menu.open': 'فتح',

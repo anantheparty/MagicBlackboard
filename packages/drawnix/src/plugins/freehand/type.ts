@@ -1,5 +1,6 @@
 import { DEFAULT_COLOR, Point, ThemeColorMode } from '@plait/core';
 import { PlaitCustomGeometry } from '@plait/draw';
+import type { FreehandInkData } from './ink/types';
 
 export {
   DEFAULT_FREEHAND_STROKE_WIDTH,
@@ -45,7 +46,10 @@ export enum FreehandShape {
 
 export const FREEHAND_TYPE = 'freehand';
 
-export type Freehand = PlaitCustomGeometry<typeof FREEHAND_TYPE, Point[], FreehandShape>;
+export type Freehand = PlaitCustomGeometry<typeof FREEHAND_TYPE, Point[], FreehandShape> & {
+  /** Optional derived geometry. Legacy elements omit this field. */
+  readonly ink?: FreehandInkData;
+};
 
 export const Freehand = {
   isFreehand: (value: unknown): value is Freehand => {

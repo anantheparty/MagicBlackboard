@@ -1,4 +1,8 @@
-import type { MagicCanvasAdapter, MagicDisposer } from '@magic-blackboard/core';
+import type {
+  MagicCanvasAdapter,
+  MagicDisposer,
+  MagicInkDiagnosticsSnapshot,
+} from '@magic-blackboard/core';
 import type { MagicRuntime } from '@magic-blackboard/runtime';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import './magic-console.scss';
@@ -56,6 +60,7 @@ export function MagicConsole({
     width: clampWidth(initialState?.width ?? DEFAULT_STATE.width),
   }));
   const [revision, setRevision] = useState(0);
+  const [inputRevision, setInputRevision] = useState(0);
   const resizing = useRef(false);
 
   const updateState = useCallback(
@@ -107,6 +112,41 @@ export function MagicConsole({
   }, [available, runtime, state.open]);
 
   useEffect(() => {
+    if (!available || !state.open || state.tab !== 'Input') {
+      return;
+    }
+
+    let active = true;
+    let frame: number | null = null;
+    const requestFrame = window.requestAnimationFrame?.bind(window) ?? fallbackRequestFrame;
+    const cancelFrame =
+      window.cancelAnimationFrame?.bind(window) ?? window.clearTimeout.bind(window);
+    const scheduleRefresh = () => {
+      if (frame !== null) {
+        return;
+      }
+      frame = requestFrame(() => {
+        frame = null;
+        if (active) {
+          setInputRevision((value) => value + 1);
+        }
+      });
+    };
+
+    const unsubscribe = runtime.inkDiagnostics.subscribe(scheduleRefresh);
+    // Capture diagnostics recorded before the Input tab subscribed.
+    scheduleRefresh();
+    return () => {
+      active = false;
+      unsubscribe();
+      if (frame !== null) {
+        cancelFrame(frame);
+        frame = null;
+      }
+    };
+  }, [available, runtime, state.open, state.tab]);
+
+  useEffect(() => {
     if (!available || !state.open) {
       return;
     }
@@ -127,10 +167,10 @@ export function MagicConsole({
   }, [available, state.open, updateState]);
 
   const content = useMemo(
-    () => renderTab(state.tab, runtime),
+    () => (state.open ? renderTab(state.tab, runtime) : null),
     // Revision intentionally invalidates the snapshot only while the console subscribes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [revision, runtime, state.tab]
+    [inputRevision, revision, runtime, state.open, state.tab]
   );
 
   if (!available) {
@@ -246,12 +286,51 @@ function renderTab(tab: ConsoleTab, runtime: MagicRuntime) {
         </ol>
       );
     case 'Input':
-      return (
-        <Empty>Pointer diagnostics are intentionally deferred to the pressure-ink round.</Empty>
-      );
+      return <InkDiagnostics snapshot={runtime.inkDiagnostics.getSnapshot()} runtime={runtime} />;
     case 'Actors':
       return <Empty>No Actor implementation or model is connected in this foundation.</Empty>;
   }
+}
+
+function InkDiagnostics({
+  snapshot,
+  runtime,
+}: {
+  readonly snapshot: MagicInkDiagnosticsSnapshot;
+  readonly runtime: MagicRuntime;
+}) {
+  const feature = runtime.features.get('magic.ink-diagnostics');
+  const featureStatus = !feature
+    ? 'not registered'
+    : !feature.available
+      ? 'unavailable'
+      : feature.enabled
+        ? 'enabled'
+        : 'disabled';
+  const pointerTypes = snapshot.capability.pointerTypes.join(', ') || 'unobserved';
+  const apis = snapshot.capability.apis;
+
+  return (
+    <div data-testid="magic-input-diagnostics">
+      <dl>
+        <Row label="Feature" value={featureStatus} />
+        <Row label="Strategy" value={snapshot.strategy.current} />
+        <Row label="Pressure" value={snapshot.capability.pressure.capability} />
+        <Row label="Pointer types" value={pointerTypes} />
+        <Row
+          label="Samples"
+          value={`${snapshot.totals.acceptedSamples}/${snapshot.totals.receivedSamples} accepted · ${snapshot.totals.droppedSamples} input dropped · ${snapshot.totals.geometryDroppedSamples} geometry dropped`}
+        />
+        <Row label="Coalesced" value={`${snapshot.totals.coalescedSamples}`} />
+        <Row
+          label="Input APIs"
+          value={`coalesced ${apis.coalescedEvents} · predicted ${apis.predictedEvents} · raw ${apis.pointerRawUpdate}`}
+        />
+        <Row label="Buffer" value={`${snapshot.size}/${snapshot.capacity} batches`} />
+      </dl>
+      {snapshot.size === 0 && <Empty>No compact input diagnostics recorded in this session.</Empty>}
+    </div>
+  );
 }
 
 function Row({ label, value }: { readonly label: string; readonly value: string }) {
@@ -280,3 +359,6 @@ function safeSnapshot(canvas: MagicCanvasAdapter | null) {
 
 const clampWidth = (width: number): number =>
   Math.round(Math.min(Math.max(width, 300), Math.max(300, window.innerWidth - 80)));
+
+const fallbackRequestFrame = (callback: FrameRequestCallback): number =>
+  window.setTimeout(() => callback(window.performance.now()), 16);

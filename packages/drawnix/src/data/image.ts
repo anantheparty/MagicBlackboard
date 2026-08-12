@@ -1,9 +1,11 @@
 import { getHitElementByPoint, getSelectedElements, PlaitBoard, Point } from '@plait/core';
 import { DataURL } from '../types';
-import { getDataURL } from './blob';
+import { assertEmbeddedImageFileSize, EmbeddedImageFileTooLargeError, getDataURL } from './blob';
 import { MindElement, MindTransforms } from '@plait/mind';
 import { DrawTransforms } from '@plait/draw';
 import { getElementOfFocusedImage } from '@plait/common';
+import { i18nInsidePlaitHook } from '../i18n';
+import type { DrawnixBoard } from '../hooks/use-drawnix';
 
 export const loadHTMLImageElement = (dataURL: DataURL) => {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -34,6 +36,7 @@ export const insertImage = async (
   startPoint?: Point,
   isDrop?: boolean
 ) => {
+  assertEmbeddedImageFileSize(imageFile);
   const selectedElement = getSelectedElements(board)[0] || getElementOfFocusedImage(board);
   const defaultImageWidth = selectedElement ? 240 : 400;
   const dataURL = await getDataURL(imageFile);
@@ -49,4 +52,22 @@ export const insertImage = async (
   } else {
     DrawTransforms.insertImage(board, imageItem, startPoint);
   }
+};
+
+export const insertImageWithFeedback = (
+  board: PlaitBoard,
+  imageFile: File,
+  startPoint?: Point,
+  isDrop?: boolean
+): void => {
+  void insertImage(board, imageFile, startPoint, isDrop).catch((error: unknown) => {
+    const { t } = i18nInsidePlaitHook(board);
+    (board as DrawnixBoard).showToast?.({
+      type: 'error',
+      message: t('toast.image.insertError'),
+      ...(error instanceof EmbeddedImageFileTooLargeError
+        ? { description: t('toast.image.tooLarge') }
+        : {}),
+    });
+  });
 };

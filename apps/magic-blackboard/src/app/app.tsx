@@ -1,9 +1,23 @@
 import { MagicConsole, type MagicConsoleState } from '@magic-blackboard/console';
-import { Drawnix, type DrawnixToolState, type Language } from '@drawnix/drawnix';
+import {
+  Drawnix,
+  isValidFreehandInkData,
+  MAX_FREEHAND_INK_SAMPLES,
+  MAX_LEGACY_FREEHAND_POINTS,
+  type DrawnixToolState,
+  type Language,
+} from '@drawnix/drawnix';
 import { PlaitCanvasAdapter } from '@magic-blackboard/plait';
 import { createMagicRuntime, type MagicRuntime } from '@magic-blackboard/runtime';
 import type { BoardChangeData } from '@plait-board/react-board';
-import type { PlaitElement, PlaitPlugin, PlaitTheme, Viewport } from '@plait/core';
+import {
+  MAX_ZOOM,
+  MIN_ZOOM,
+  type PlaitElement,
+  type PlaitPlugin,
+  type PlaitTheme,
+  type Viewport,
+} from '@plait/core';
 import {
   ArrowLineMarkerType,
   ArrowLineShape,
@@ -17,6 +31,7 @@ import {
 } from '@plait/draw';
 import { Component, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
 import { createMagicStores, LocalForageSettingsStore, type MagicStores } from './storage';
+import { createMagicInkFeatureDefinitions, MagicInkController } from './ink';
 import './app.scss';
 
 export type ExplicitBoardContext = {
@@ -61,8 +76,13 @@ type AppSession = {
   readonly stores: MagicStores;
   readonly adapter: PlaitCanvasAdapter;
   readonly runtime: MagicRuntime<PlaitCanvasAdapter>;
+  readonly inkController: MagicInkController;
   readonly additionalPlugins: readonly PlaitPlugin[];
   readonly pendingPersistence: Map<StorageSlot, PendingPersistence>;
+  readonly persistenceLocks: Set<StorageSlot>;
+  readonly writeFailureLocks: Set<StorageSlot>;
+  readonly onPersistenceFailure: (slot: StorageSlot, key: string, error: unknown) => void;
+  readonly onPersistenceValidationFailure: (slot: StorageSlot, warning: string) => void;
   latestBoard: BoardState | null;
 };
 
@@ -81,6 +101,7 @@ export type MagicBlackboardSessionDependencies = {
   readonly createStores?: typeof createMagicStores;
   readonly createAdapter?: () => PlaitCanvasAdapter;
   readonly createRuntime?: (settings: LocalForageSettingsStore) => MagicRuntime<PlaitCanvasAdapter>;
+  readonly createInkController?: (runtime: MagicRuntime<PlaitCanvasAdapter>) => MagicInkController;
 };
 
 const DEFAULT_SESSION_DEPENDENCIES: MagicBlackboardSessionDependencies = {};
@@ -97,7 +118,256 @@ const DEFAULT_PREFERENCES: Preferences = {
 
 const BOARD_DOCUMENT_SCHEMA_VERSION = 1 as const;
 const MAX_BOARD_VALUE_DEPTH = 128;
-const MAX_BOARD_VALUE_COUNT = 1_000_000;
+// Keep product-owned recovery and write-side validation aligned with the
+// reusable Drawnix import envelope. This admits multiple creator-valid
+// pressure strokes while still bounding local restoration work.
+const MAX_BOARD_VALUE_COUNT = 2_000_000;
+const BOARD_INK_PRIVACY_WARNING =
+  'board document contains raw input or device metadata; automatic saving is paused.';
+const BOARD_ELEMENT_SCHEMA_WARNING =
+  'board document contains unsupported element or ink data; automatic saving is paused.';
+const PERSISTENCE_WRITE_WARNINGS: Readonly<Record<StorageSlot, string>> = {
+  'board.document': 'board document could not be saved; automatic saving is paused.',
+  'board.tool-state': 'board tool state could not be saved; automatic saving is paused.',
+  'preferences.current': 'preferences could not be saved; automatic saving is paused.',
+  'console.layout': 'console layout could not be saved; automatic saving is paused.',
+};
+const PERSISTABLE_FREEHAND_FIELDS = new Set([
+  'angle',
+  'fill',
+  'fillStyle',
+  'groupId',
+  'id',
+  'ink',
+  'opacity',
+  'points',
+  'shape',
+  'strokeColor',
+  'strokeStyle',
+  'strokeWidth',
+  'type',
+]);
+const PERSISTABLE_FREEHAND_STROKE_STYLES = new Set(['solid', 'dashed', 'dotted']);
+const PERSISTABLE_FREEHAND_FILL_STYLES = new Set([
+  'solid',
+  'hachure',
+  'zigzag',
+  'cross-hatch',
+  'dots',
+  'dashed',
+  'zigzag-line',
+]);
+const PERSISTABLE_GEOMETRY_FIELDS = new Set([
+  'angle',
+  'autoSize',
+  'cells',
+  'columns',
+  'fill',
+  'fillStyle',
+  'groupId',
+  'id',
+  'opacity',
+  'points',
+  'rows',
+  'shape',
+  'strokeColor',
+  'strokeStyle',
+  'strokeWidth',
+  'text',
+  'texts',
+  'type',
+]);
+const PERSISTABLE_ARROW_LINE_FIELDS = new Set([
+  'groupId',
+  'id',
+  'opacity',
+  'points',
+  'shape',
+  'source',
+  'strokeColor',
+  'strokeStyle',
+  'strokeWidth',
+  'target',
+  'texts',
+  'type',
+]);
+const PERSISTABLE_VECTOR_LINE_FIELDS = new Set([
+  'angle',
+  'fill',
+  'groupId',
+  'id',
+  'opacity',
+  'points',
+  'shape',
+  'strokeColor',
+  'strokeStyle',
+  'strokeWidth',
+  'type',
+]);
+const PERSISTABLE_IMAGE_FIELDS = new Set(['angle', 'groupId', 'id', 'points', 'type', 'url']);
+const PERSISTABLE_TABLE_FIELDS = new Set([
+  'angle',
+  'cells',
+  'columns',
+  'groupId',
+  'header',
+  'id',
+  'points',
+  'rows',
+  'shape',
+  'strokeColor',
+  'strokeStyle',
+  'type',
+]);
+const PERSISTABLE_GROUP_FIELDS = new Set(['groupId', 'id', 'type']);
+const PERSISTABLE_MIND_FIELDS = new Set([
+  'angle',
+  'branchColor',
+  'branchShape',
+  'branchWidth',
+  'children',
+  'data',
+  'end',
+  'fill',
+  'groupId',
+  'id',
+  'isCollapsed',
+  'layout',
+  'manualWidth',
+  'points',
+  'rightNodeCount',
+  'shape',
+  'start',
+  'strokeColor',
+  'strokeStyle',
+  'strokeWidth',
+  'type',
+]);
+const PERSISTABLE_SLATE_ELEMENT_FIELDS = new Set(['align', 'children', 'direction', 'type', 'url']);
+const PERSISTABLE_SLATE_TEXT_FIELDS = new Set([
+  'bold',
+  'code',
+  'color',
+  'font-size',
+  'italic',
+  'strike',
+  'text',
+  'underlined',
+]);
+const PERSISTABLE_ARROW_HANDLE_FIELDS = new Set(['boundId', 'connection', 'marker']);
+const PERSISTABLE_DRAW_TEXT_FIELDS = new Set(['id', 'position', 'text']);
+const PERSISTABLE_TABLE_ROW_FIELDS = new Set(['height', 'id']);
+const PERSISTABLE_TABLE_COLUMN_FIELDS = new Set(['id', 'width']);
+const PERSISTABLE_TABLE_CELL_FIELDS = new Set([
+  'columnId',
+  'colspan',
+  'fill',
+  'id',
+  'rowId',
+  'rowspan',
+  'text',
+]);
+const PERSISTABLE_MIND_DATA_FIELDS = new Set(['emojis', 'image', 'topic']);
+const PERSISTABLE_MIND_EMOJI_FIELDS = new Set(['name']);
+const PERSISTABLE_MIND_IMAGE_FIELDS = new Set(['height', 'url', 'width']);
+const FORBIDDEN_PERSISTED_INK_KEYS = new Set([
+  'altkey',
+  'altitude',
+  'azimuth',
+  'button',
+  'buttons',
+  'capturedat',
+  'capabilities',
+  'capabilityfingerprint',
+  'clientx',
+  'clienty',
+  'coalescedevents',
+  'contactheight',
+  'contactwidth',
+  'ctrlkey',
+  'deviceid',
+  'deviceidentifier',
+  'diagnostic',
+  'diagnostics',
+  'driverfingerprint',
+  'event',
+  'events',
+  'height',
+  'isprimary',
+  'movementx',
+  'movementy',
+  'metakey',
+  'offsetx',
+  'offsety',
+  'pagex',
+  'pagey',
+  'altitudeangle',
+  'azimuthangle',
+  'observedat',
+  'pointerevent',
+  'pointerevents',
+  'pointerid',
+  'pointertype',
+  'pointerrawupdate',
+  'predictedevents',
+  'pressure',
+  'pressurehistory',
+  'pressures',
+  'rawcoordinates',
+  'rawpointerevent',
+  'rawpointerevents',
+  'rawpoints',
+  'rawpressure',
+  'rawpressures',
+  'rawsample',
+  'rawsamples',
+  'sample',
+  'samples',
+  'samplepressure',
+  'screenx',
+  'screeny',
+  'shiftkey',
+  'stylusid',
+  'tilt',
+  'tiltx',
+  'tilty',
+  'timestamp',
+  'timestamps',
+  'time',
+  'tangentialpressure',
+  'twist',
+  'width',
+]);
+const FORBIDDEN_PERSISTED_INK_KEY_PREFIXES = [
+  'altitude',
+  'azimuth',
+  'capabilityfingerprint',
+  'capturedat',
+  'contactheight',
+  'contactwidth',
+  'deviceid',
+  'diagnostic',
+  'driverfingerprint',
+  'force',
+  'observedat',
+  'pointerevent',
+  'pointertype',
+  'pressure',
+  'rawcoordinate',
+  'rawpointerevent',
+  'rawpressure',
+  'rawsample',
+  'reading',
+  'sample',
+  'tangentialpressure',
+  'sampletimestamp',
+  'stylusid',
+  'sensor',
+  'tilt',
+  'timestamp',
+  'twist',
+  'wallclock',
+] as const;
 
 const TOP_LEVEL_ELEMENT_TYPES = new Set<string>([
   'geometry',
@@ -164,13 +434,7 @@ const PREFERENCES_KEY = 'current';
 const CONSOLE_KEY = 'layout';
 
 const FEATURE_DEFINITIONS = [
-  {
-    id: 'magic.ink-diagnostics',
-    title: 'Ink diagnostics',
-    description: 'Placeholder only; it does not change input or ink behavior.',
-    defaultEnabled: false,
-    available: false,
-  },
+  ...createMagicInkFeatureDefinitions(import.meta.env.DEV),
   {
     id: 'magic.actor',
     title: 'Actor',
@@ -218,11 +482,13 @@ export function MagicBlackboardSession({
   const createStoresDependency = dependencies.createStores;
   const createAdapterDependency = dependencies.createAdapter;
   const createRuntimeDependency = dependencies.createRuntime;
+  const createInkControllerDependency = dependencies.createInkController;
 
   useEffect(() => {
     let active = true;
     let adapter: PlaitCanvasAdapter | undefined;
     let runtime: MagicRuntime<PlaitCanvasAdapter> | undefined;
+    let inkController: MagicInkController | undefined;
     let session: AppSession;
     try {
       const stores = (createStoresDependency ?? createMagicStores)();
@@ -235,17 +501,85 @@ export function MagicBlackboardSession({
             settings,
             ownsSettings: false,
             eventHistoryCapacity: 200,
+            featureSettingsKeyPrefix: 'main.features',
           });
+      inkController = createInkControllerDependency
+        ? createInkControllerDependency(runtime)
+        : new MagicInkController(runtime);
       session = {
         stores,
         adapter,
         runtime,
-        additionalPlugins: [adapter.asPlugin()],
+        inkController,
+        additionalPlugins: [adapter.asPlugin(), inkController.asPlugin()],
         pendingPersistence: new Map(),
+        persistenceLocks: new Set(),
+        writeFailureLocks: new Set(),
+        onPersistenceFailure: (slot, key, error) => {
+          console.warn(`Magic Blackboard could not persist "${key}".`, error);
+          cancelPendingPersistence(session, slot);
+          session.persistenceLocks.add(slot);
+          session.writeFailureLocks.add(slot);
+          if (!active) {
+            return;
+          }
+          const warning = PERSISTENCE_WRITE_WARNINGS[slot];
+          setReady((current) => {
+            if (!current || current.session !== session) {
+              return current;
+            }
+            const hasWarning = current.loaded.recoveryWarnings.includes(warning);
+            const hasLock = current.loaded.recoveryLocks.includes(slot);
+            if (hasWarning && hasLock) {
+              return current;
+            }
+            return {
+              ...current,
+              loaded: {
+                ...current.loaded,
+                recoveryWarnings: hasWarning
+                  ? current.loaded.recoveryWarnings
+                  : [...current.loaded.recoveryWarnings, warning],
+                recoveryLocks: hasLock
+                  ? current.loaded.recoveryLocks
+                  : [...current.loaded.recoveryLocks, slot],
+              },
+            };
+          });
+        },
+        onPersistenceValidationFailure: (slot, warning) => {
+          cancelPendingPersistence(session, slot);
+          session.persistenceLocks.add(slot);
+          if (!active) {
+            return;
+          }
+          setReady((current) => {
+            if (!current || current.session !== session) {
+              return current;
+            }
+            const hasWarning = current.loaded.recoveryWarnings.includes(warning);
+            const hasLock = current.loaded.recoveryLocks.includes(slot);
+            if (hasWarning && hasLock) {
+              return current;
+            }
+            return {
+              ...current,
+              loaded: {
+                ...current.loaded,
+                recoveryWarnings: hasWarning
+                  ? current.loaded.recoveryWarnings
+                  : [...current.loaded.recoveryWarnings, warning],
+                recoveryLocks: hasLock
+                  ? current.loaded.recoveryLocks
+                  : [...current.loaded.recoveryLocks, slot],
+              },
+            };
+          });
+        },
         latestBoard: null,
       };
     } catch (error) {
-      disposePartialSession(runtime, adapter);
+      disposePartialSession(runtime, adapter, inkController);
       setStartupError(toError(error));
       return;
     }
@@ -267,8 +601,13 @@ export function MagicBlackboardSession({
         if (!active) {
           return;
         }
+        replacePersistenceLocks(session, state.recoveryLocks);
         session.latestBoard = state.board;
-        setReady({ session, loaded: state, tutorial: state.board.children.length === 0 });
+        setReady({
+          session,
+          loaded: state,
+          tutorial: state.board.children.length === 0,
+        });
       })
       .catch((error: unknown) => {
         // loadState isolates individual storage failures. This catch protects
@@ -280,6 +619,7 @@ export function MagicBlackboardSession({
         const fallback = defaultLoadedState([
           '本地状态初始化失败，已使用安全默认值；原存储未修改。',
         ]);
+        replacePersistenceLocks(session, fallback.recoveryLocks);
         session.latestBoard = fallback.board;
         setReady({
           session,
@@ -296,21 +636,29 @@ export function MagicBlackboardSession({
 
     return () => {
       active = false;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pagehide', handlePageHide);
-      flushSessionPersistence();
       try {
-        runtime.dispose();
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       } catch (error) {
-        console.error('Magic runtime cleanup failed', error);
+        console.error('Magic visibility listener cleanup failed', error);
       }
       try {
-        adapter.dispose();
+        window.removeEventListener('pagehide', handlePageHide);
       } catch (error) {
-        console.error('Magic adapter cleanup failed', error);
+        console.error('Magic page lifecycle cleanup failed', error);
       }
+      try {
+        flushSessionPersistence();
+      } catch (error) {
+        console.error('Magic persistence cleanup failed', error);
+      }
+      disposePartialSession(runtime, adapter, inkController, 'session');
     };
-  }, [createAdapterDependency, createRuntimeDependency, createStoresDependency]);
+  }, [
+    createAdapterDependency,
+    createInkControllerDependency,
+    createRuntimeDependency,
+    createStoresDependency,
+  ]);
 
   const updatePreferences = useCallback(
     (patch: Partial<Preferences>) => {
@@ -320,7 +668,7 @@ export function MagicBlackboardSession({
         }
         const preferences = { ...current.loaded.preferences, ...patch };
         persistItemUnlessLocked(
-          current.loaded.recoveryLocks,
+          current.session,
           'preferences.current',
           current.session.stores.preferences,
           PREFERENCES_KEY,
@@ -343,7 +691,7 @@ export function MagicBlackboardSession({
           context: { ...current.loaded.preferences.context, ...patch },
         };
         persistItemUnlessLocked(
-          current.loaded.recoveryLocks,
+          current.session,
           'preferences.current',
           current.session.stores.preferences,
           PREFERENCES_KEY,
@@ -358,13 +706,11 @@ export function MagicBlackboardSession({
   const updateConsoleState = useCallback(
     (nextConsoleState: MagicConsoleState) => {
       const session = ready?.session;
-      const recoveryLocks = ready?.loaded.recoveryLocks;
-      if (!session || !recoveryLocks) {
+      if (!session) {
         return;
       }
       schedulePersistItem(
         session,
-        recoveryLocks,
         'console.layout',
         session.stores.console,
         CONSOLE_KEY,
@@ -372,7 +718,7 @@ export function MagicBlackboardSession({
         150
       );
     },
-    [ready?.loaded.recoveryLocks, ready?.session]
+    [ready?.session]
   );
 
   if (startupError) {
@@ -435,6 +781,7 @@ export function MagicBlackboardSession({
           />
         )}
         onChange={(change) => {
+          const previousBoard = session.latestBoard;
           const nextBoard = toBoardState(change);
           // Keep Drawnix's controlled value reference aligned without a React
           // state update for every high-frequency set_node operation.
@@ -446,30 +793,75 @@ export function MagicBlackboardSession({
                 : current
             );
           }
-          if (change.operations.some(shouldPersistDocumentImmediately)) {
-            persistItemNow(
-              session,
-              loaded.recoveryLocks,
-              'board.document',
-              stores.board,
-              BOARD_KEY,
-              nextBoard
-            );
-          } else if (shouldScheduleDocumentPersistence(change.operations)) {
-            schedulePersistItem(
-              session,
-              loaded.recoveryLocks,
-              'board.document',
-              stores.board,
-              BOARD_KEY,
-              nextBoard,
-              200
-            );
+          const persistImmediately =
+            change.source === 'document-replace' ||
+            change.operations.some(shouldPersistDocumentImmediately);
+          const schedulePersistence = shouldScheduleDocumentPersistence(change.operations);
+          if (!persistImmediately && !schedulePersistence) {
+            return;
+          }
+          const persistenceWarning =
+            change.source === 'document-replace'
+              ? getBoardPersistenceWarning(nextBoard)
+              : !session.persistenceLocks.has('board.document')
+                ? getIncrementalBoardPersistenceWarning(change, previousBoard, nextBoard)
+                : undefined;
+          if (persistenceWarning) {
+            cancelPendingPersistence(session, 'board.document');
+            if (!session.persistenceLocks.has('board.document')) {
+              session.persistenceLocks.add('board.document');
+              setReady((current) => {
+                if (!current || current.session !== session) {
+                  return current;
+                }
+                return {
+                  ...current,
+                  loaded: {
+                    ...current.loaded,
+                    recoveryWarnings: current.loaded.recoveryWarnings.includes(persistenceWarning)
+                      ? current.loaded.recoveryWarnings
+                      : [...current.loaded.recoveryWarnings, persistenceWarning],
+                    recoveryLocks: current.loaded.recoveryLocks.includes('board.document')
+                      ? current.loaded.recoveryLocks
+                      : [...current.loaded.recoveryLocks, 'board.document'],
+                  },
+                };
+              });
+            }
+            return;
+          }
+          if (
+            change.source === 'document-replace' &&
+            !session.writeFailureLocks.has('board.document') &&
+            session.persistenceLocks.delete('board.document')
+          ) {
+            setReady((current) => {
+              if (!current || current.session !== session) {
+                return current;
+              }
+              return {
+                ...current,
+                loaded: {
+                  ...current.loaded,
+                  recoveryWarnings: current.loaded.recoveryWarnings.filter(
+                    (warning) => !isBoardRecoveryWarning(warning)
+                  ),
+                  recoveryLocks: current.loaded.recoveryLocks.filter(
+                    (lock) => lock !== 'board.document'
+                  ),
+                },
+              };
+            });
+          }
+          if (persistImmediately) {
+            persistItemNow(session, 'board.document', stores.board, BOARD_KEY, nextBoard);
+          } else if (schedulePersistence) {
+            schedulePersistItem(session, 'board.document', stores.board, BOARD_KEY, nextBoard, 200);
           }
         }}
         onToolStateChange={(nextToolState) => {
           persistItemUnlessLocked(
-            loaded.recoveryLocks,
+            session,
             'board.tool-state',
             stores.board,
             TOOL_STATE_KEY,
@@ -513,18 +905,37 @@ function StartupFailure() {
 
 function disposePartialSession(
   runtime: MagicRuntime<PlaitCanvasAdapter> | undefined,
-  adapter: PlaitCanvasAdapter | undefined
+  adapter: PlaitCanvasAdapter | undefined,
+  inkController?: MagicInkController,
+  phase: 'initialization' | 'session' = 'initialization'
 ): void {
+  const phaseLabel = phase === 'initialization' ? ' during initialization' : '';
+  try {
+    inkController?.dispose();
+  } catch (error) {
+    console.error(`Magic ink input cleanup failed${phaseLabel}`, error);
+  }
   try {
     runtime?.dispose();
   } catch (error) {
-    console.error('Magic runtime cleanup failed during initialization', error);
+    console.error(`Magic runtime cleanup failed${phaseLabel}`, error);
   }
   try {
     adapter?.dispose();
   } catch (error) {
-    console.error('Magic adapter cleanup failed during initialization', error);
+    console.error(`Magic adapter cleanup failed${phaseLabel}`, error);
   }
+}
+
+function replacePersistenceLocks(session: AppSession, locks: readonly StorageSlot[]): void {
+  session.persistenceLocks.clear();
+  for (const lock of locks) {
+    session.persistenceLocks.add(lock);
+  }
+}
+
+function isBoardRecoveryWarning(warning: string): boolean {
+  return warning === BOARD_INK_PRIVACY_WARNING || warning.startsWith('board document ');
 }
 
 function toError(error: unknown): Error {
@@ -578,7 +989,9 @@ function ProductOverlay({
               aria-label="Subject"
               value={context.subject}
               onChange={(event) =>
-                onContextChange({ subject: event.target.value as ExplicitBoardContext['subject'] })
+                onContextChange({
+                  subject: event.target.value as ExplicitBoardContext['subject'],
+                })
               }
             >
               <option value="unknown">{copy.unknown}</option>
@@ -602,7 +1015,7 @@ function ProductOverlay({
 
 async function loadState(stores: MagicStores): Promise<LoadedState> {
   const [boardResult, toolResult, preferencesResult, consoleResult] = await Promise.all([
-    recoverItem(stores.board, BOARD_KEY, 'board document', parseBoardState),
+    recoverBoardItem(stores.board),
     recoverItem(stores.board, TOOL_STATE_KEY, 'tool state', parseToolState),
     recoverItem(stores.preferences, PREFERENCES_KEY, 'preferences', parseStoredPreferences),
     recoverItem(stores.console, CONSOLE_KEY, 'console layout', parseConsoleState),
@@ -641,6 +1054,22 @@ type RecoverResult<T> = {
   readonly warning?: string;
   readonly locked?: boolean;
 };
+
+async function recoverBoardItem(store: MagicStores['board']): Promise<RecoverResult<BoardState>> {
+  const result = await recoverItem(store, BOARD_KEY, 'board document', parseBoardState);
+  if (!result.value) {
+    return result;
+  }
+  const warning = getBoardPersistenceWarning(result.value);
+  if (!warning) {
+    return result;
+  }
+  return {
+    value: result.value,
+    warning,
+    locked: true,
+  };
+}
 
 async function recoverItem<T>(
   store: MagicStores[keyof MagicStores],
@@ -703,7 +1132,64 @@ function createEmptyBoardState(): BoardState {
 
 function areValidPlaitElements(values: readonly unknown[]): boolean {
   const ids = new Set<string>();
-  return values.every((value) => isValidTopLevelPlaitElement(value, ids));
+  return (
+    values.every((value) => isValidTopLevelPlaitElement(value, ids)) &&
+    haveValidGroupReferences(values)
+  );
+}
+
+function haveValidGroupReferences(values: readonly unknown[]): boolean {
+  const elements = new Map<string, Record<string, unknown>>();
+  const pending = [...values];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (!isRecord(value) || typeof value.id !== 'string') {
+      return false;
+    }
+    elements.set(value.id, value);
+    if (
+      (value.type === 'mind' || value.type === 'mindmap' || value.type === 'mind_child') &&
+      Array.isArray(value.children)
+    ) {
+      pending.push(...value.children);
+    }
+  }
+
+  for (const element of elements.values()) {
+    if (typeof element.groupId !== 'string') {
+      continue;
+    }
+    const group = elements.get(element.groupId);
+    if (!group || group.type !== 'group' || group === element) {
+      return false;
+    }
+  }
+
+  const visited = new Set<string>();
+  for (const element of elements.values()) {
+    if (element.type !== 'group' || visited.has(element.id as string)) {
+      continue;
+    }
+    const path: string[] = [];
+    const pathIds = new Set<string>();
+    let current: Record<string, unknown> | undefined = element;
+    while (current) {
+      const id = current.id as string;
+      if (visited.has(id)) {
+        break;
+      }
+      if (pathIds.has(id)) {
+        return false;
+      }
+      path.push(id);
+      pathIds.add(id);
+      current = typeof current.groupId === 'string' ? elements.get(current.groupId) : undefined;
+    }
+    for (const id of path) {
+      visited.add(id);
+    }
+  }
+  return true;
 }
 
 function isValidTopLevelPlaitElement(value: unknown, ids: Set<string>): boolean {
@@ -737,15 +1223,27 @@ function isValidTopLevelPlaitElement(value: unknown, ids: Set<string>): boolean 
     case 'mindmap':
       return isValidMindElement(value, ids, true, 0);
     case 'freehand':
-      return (
-        hasNoPlaitChildren(value) &&
-        typeof value.shape === 'string' &&
-        FREEHAND_SHAPES.has(value.shape) &&
-        hasValidPoints(value, 1)
-      );
+      return isValidStoredFreehandElement(value);
     default:
       return false;
   }
+}
+
+function isValidStoredFreehandElement(value: Record<string, unknown>): boolean {
+  if (
+    !hasNoPlaitChildren(value) ||
+    typeof value.shape !== 'string' ||
+    !FREEHAND_SHAPES.has(value.shape) ||
+    !Array.isArray(value.points)
+  ) {
+    return false;
+  }
+  const hasAlignedV1Ink = isValidFreehandInkData(value.ink, value.points.length);
+  return hasValidPoints(
+    value,
+    1,
+    hasAlignedV1Ink ? MAX_FREEHAND_INK_SAMPLES : MAX_LEGACY_FREEHAND_POINTS
+  );
 }
 
 function registerPlaitElementIdentity(
@@ -1025,11 +1523,11 @@ function hasNoPlaitChildren(value: Record<string, unknown>): boolean {
   return value.children === undefined;
 }
 
-function isSafeStoredBoardValue(value: unknown): boolean {
+export function isSafeStoredBoardValue(value: unknown): boolean {
   const ancestors = new WeakSet<object>();
   const budget = { remaining: MAX_BOARD_VALUE_COUNT };
 
-  const visit = (current: unknown, depth: number): boolean => {
+  const visit = (current: unknown, depth: number, allowNonFinite = false): boolean => {
     budget.remaining -= 1;
     if (budget.remaining < 0 || depth > MAX_BOARD_VALUE_DEPTH) {
       return false;
@@ -1043,7 +1541,7 @@ function isSafeStoredBoardValue(value: unknown): boolean {
       return true;
     }
     if (typeof current === 'number') {
-      return Number.isFinite(current);
+      return allowNonFinite || Number.isFinite(current);
     }
     if (typeof current !== 'object') {
       return false;
@@ -1066,8 +1564,11 @@ function isSafeStoredBoardValue(value: unknown): boolean {
       }
     }
     ancestors.add(current);
-    const values = isArray ? current : Object.values(current);
-    const valid = values.every((entry) => visit(entry, depth + 1));
+    const valid = isArray
+      ? current.every((entry) => visit(entry, depth + 1, allowNonFinite))
+      : Object.entries(current).every(([key, entry]) =>
+          visit(entry, depth + 1, allowNonFinite || (key === 'ink' && current.type === 'freehand'))
+        );
     ancestors.delete(current);
     return valid;
   };
@@ -1075,12 +1576,541 @@ function isSafeStoredBoardValue(value: unknown): boolean {
   return visit(value, 0);
 }
 
+function containsForbiddenPersistedInputData(elements: readonly unknown[]): boolean {
+  for (const element of elements) {
+    if (
+      isRecord(element) &&
+      hasForbiddenPersistedInputValue(element, element.type === 'freehand')
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function containsUnsupportedPersistedElementData(elements: readonly unknown[]): boolean {
+  return (
+    !isSafeStoredBoardValue({
+      schemaVersion: BOARD_DOCUMENT_SCHEMA_VERSION,
+      children: elements,
+    }) ||
+    !areValidPlaitElements(elements) ||
+    elements.some((element) => !isPersistableTopLevelElement(element))
+  );
+}
+
+function isPersistableTopLevelElement(value: unknown): boolean {
+  if (!isRecord(value) || !isValidTopLevelPlaitElement(value, new Set<string>())) {
+    return false;
+  }
+  switch (value.type) {
+    case 'freehand':
+      return isPersistableFreehandElement(value);
+    case 'geometry':
+      return (
+        hasOnlyPersistableKeys(value, PERSISTABLE_GEOMETRY_FIELDS) &&
+        hasPersistableCommonDrawFields(value) &&
+        hasPersistableGeometryContent(value)
+      );
+    case 'arrow-line':
+    case 'line':
+      return (
+        hasOnlyPersistableKeys(value, PERSISTABLE_ARROW_LINE_FIELDS) &&
+        hasPersistableStrokeFields(value) &&
+        isPersistableArrowHandle(value.source) &&
+        isPersistableArrowHandle(value.target) &&
+        isPersistableDrawTextArray(value.texts)
+      );
+    case 'vector-line':
+      return (
+        hasOnlyPersistableKeys(value, PERSISTABLE_VECTOR_LINE_FIELDS) &&
+        hasPersistableCommonDrawFields(value)
+      );
+    case 'image':
+      return (
+        hasOnlyPersistableKeys(value, PERSISTABLE_IMAGE_FIELDS) &&
+        (value.angle === undefined ||
+          (typeof value.angle === 'number' && Number.isFinite(value.angle)))
+      );
+    case 'table':
+      return (
+        hasOnlyPersistableKeys(value, PERSISTABLE_TABLE_FIELDS) &&
+        value.header === undefined &&
+        value.shape === undefined &&
+        hasPersistableTableStrokeFields(value) &&
+        isPersistableTableAxes(value.rows, 'height') &&
+        isPersistableTableAxes(value.columns, 'width') &&
+        isPersistableTableCells(value.cells)
+      );
+    case 'swimlane':
+      return (
+        hasOnlyPersistableKeys(value, PERSISTABLE_TABLE_FIELDS) &&
+        (value.header === undefined || typeof value.header === 'boolean') &&
+        hasPersistableTableStrokeFields(value) &&
+        isPersistableTableAxes(value.rows, 'height') &&
+        isPersistableTableAxes(value.columns, 'width') &&
+        isPersistableTableCells(value.cells)
+      );
+    case 'group':
+      return hasOnlyPersistableKeys(value, PERSISTABLE_GROUP_FIELDS);
+    case 'mind':
+    case 'mindmap':
+      return isPersistableMindElement(value, true);
+    default:
+      return false;
+  }
+}
+
+function hasPersistableGeometryContent(value: Record<string, unknown>): boolean {
+  if (typeof value.shape !== 'string') {
+    return false;
+  }
+  if (GEOMETRY_WITH_TABLE_DATA_SHAPES.has(value.shape)) {
+    return (
+      value.text === undefined &&
+      value.texts === undefined &&
+      value.autoSize === undefined &&
+      isPersistableTableAxes(value.rows, 'height') &&
+      isPersistableTableAxes(value.columns, 'width') &&
+      isPersistableTableCells(value.cells)
+    );
+  }
+  if (GEOMETRY_WITH_MULTIPLE_TEXT_SHAPES.has(value.shape)) {
+    return (
+      value.text === undefined &&
+      value.rows === undefined &&
+      value.columns === undefined &&
+      value.cells === undefined &&
+      value.autoSize === undefined &&
+      isPersistableDrawTextArray(value.texts)
+    );
+  }
+  if (GEOMETRY_WITHOUT_TEXT_SHAPES.has(value.shape)) {
+    return (
+      value.text === undefined &&
+      value.texts === undefined &&
+      value.rows === undefined &&
+      value.columns === undefined &&
+      value.cells === undefined &&
+      value.autoSize === undefined
+    );
+  }
+  return (
+    value.texts === undefined &&
+    value.rows === undefined &&
+    value.columns === undefined &&
+    value.cells === undefined &&
+    isPersistableSlateElement(value.text) &&
+    (value.shape === BasicShapes.text
+      ? typeof value.autoSize === 'boolean'
+      : value.autoSize === undefined)
+  );
+}
+
+function isPersistableFreehandElement(value: Record<string, unknown>): boolean {
+  if (Object.keys(value).some((key) => !PERSISTABLE_FREEHAND_FIELDS.has(key))) {
+    return false;
+  }
+  if (
+    typeof value.id !== 'string' ||
+    value.id.trim().length === 0 ||
+    value.type !== 'freehand' ||
+    typeof value.shape !== 'string' ||
+    !FREEHAND_SHAPES.has(value.shape) ||
+    !Array.isArray(value.points) ||
+    value.points.length === 0 ||
+    !value.points.every(isPoint)
+  ) {
+    return false;
+  }
+  return Object.entries(value).every(([key, entry]) =>
+    isPersistableFreehandField(key, entry, value)
+  );
+}
+
+function isPersistableFreehandField(
+  key: string,
+  value: unknown,
+  element: Record<string, unknown>
+): boolean {
+  switch (key) {
+    case 'id':
+      return typeof value === 'string' && value.trim().length > 0;
+    case 'type':
+      return value === 'freehand';
+    case 'shape':
+      return typeof value === 'string' && FREEHAND_SHAPES.has(value);
+    case 'points':
+      return (
+        Array.isArray(value) &&
+        value.length > 0 &&
+        value.length <=
+          (isValidFreehandInkData(element.ink, value.length)
+            ? MAX_FREEHAND_INK_SAMPLES
+            : MAX_LEGACY_FREEHAND_POINTS) &&
+        value.every(isPoint)
+      );
+    case 'groupId':
+      return value === undefined || (typeof value === 'string' && value.trim().length > 0);
+    case 'angle':
+      return value === undefined || (typeof value === 'number' && Number.isFinite(value));
+    case 'fill':
+    case 'strokeColor':
+      return value === undefined || value === null || typeof value === 'string';
+    case 'strokeWidth':
+      return (
+        value === undefined || (typeof value === 'number' && Number.isFinite(value) && value > 0)
+      );
+    case 'strokeStyle':
+      return (
+        value === undefined ||
+        (typeof value === 'string' && PERSISTABLE_FREEHAND_STROKE_STYLES.has(value))
+      );
+    case 'fillStyle':
+      return (
+        value === undefined ||
+        (typeof value === 'string' && PERSISTABLE_FREEHAND_FILL_STYLES.has(value))
+      );
+    case 'opacity':
+      return (
+        value === undefined ||
+        (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1)
+      );
+    case 'ink':
+      return Array.isArray(element.points) && isValidFreehandInkData(value, element.points.length);
+    default:
+      return false;
+  }
+}
+
+function hasOnlyPersistableKeys(
+  value: Record<string, unknown>,
+  allowed: ReadonlySet<string>
+): boolean {
+  return Object.keys(value).every((key) => allowed.has(key));
+}
+
+function hasPersistableStrokeFields(value: Record<string, unknown>): boolean {
+  return (
+    (value.strokeColor === undefined ||
+      value.strokeColor === null ||
+      typeof value.strokeColor === 'string') &&
+    (value.strokeWidth === undefined ||
+      (typeof value.strokeWidth === 'number' &&
+        Number.isFinite(value.strokeWidth) &&
+        value.strokeWidth > 0)) &&
+    (value.strokeStyle === undefined ||
+      (typeof value.strokeStyle === 'string' &&
+        PERSISTABLE_FREEHAND_STROKE_STYLES.has(value.strokeStyle))) &&
+    (value.opacity === undefined ||
+      (typeof value.opacity === 'number' &&
+        Number.isFinite(value.opacity) &&
+        value.opacity >= 0 &&
+        value.opacity <= 1))
+  );
+}
+
+function hasPersistableCommonDrawFields(value: Record<string, unknown>): boolean {
+  return (
+    hasPersistableStrokeFields(value) &&
+    (value.fill === undefined || value.fill === null || typeof value.fill === 'string') &&
+    (value.fillStyle === undefined ||
+      (typeof value.fillStyle === 'string' &&
+        PERSISTABLE_FREEHAND_FILL_STYLES.has(value.fillStyle))) &&
+    (value.angle === undefined || (typeof value.angle === 'number' && Number.isFinite(value.angle)))
+  );
+}
+
+function isPersistableArrowHandle(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyPersistableKeys(value, PERSISTABLE_ARROW_HANDLE_FIELDS) &&
+    typeof value.marker === 'string' &&
+    ARROW_LINE_MARKERS.has(value.marker) &&
+    (value.boundId === undefined ||
+      (typeof value.boundId === 'string' && value.boundId.trim().length > 0)) &&
+    (value.connection === undefined || isPoint(value.connection))
+  );
+}
+
+function isPersistableDrawTextArray(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        isRecord(item) &&
+        hasOnlyPersistableKeys(item, PERSISTABLE_DRAW_TEXT_FIELDS) &&
+        (item.id === undefined || (typeof item.id === 'string' && item.id.trim().length > 0)) &&
+        (item.position === undefined ||
+          (typeof item.position === 'number' &&
+            Number.isFinite(item.position) &&
+            item.position >= 0 &&
+            item.position <= 1)) &&
+        isPersistableSlateElement(item.text)
+    )
+  );
+}
+
+function isPersistableTableAxes(value: unknown, sizeKey: 'height' | 'width'): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (axis) =>
+        isRecord(axis) &&
+        hasOnlyPersistableKeys(
+          axis,
+          sizeKey === 'height' ? PERSISTABLE_TABLE_ROW_FIELDS : PERSISTABLE_TABLE_COLUMN_FIELDS
+        ) &&
+        typeof axis.id === 'string' &&
+        axis.id.trim().length > 0 &&
+        (axis[sizeKey] === undefined ||
+          (typeof axis[sizeKey] === 'number' &&
+            Number.isFinite(axis[sizeKey]) &&
+            axis[sizeKey] > 0))
+    )
+  );
+}
+
+function isPersistableTableCells(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (cell) =>
+        isRecord(cell) &&
+        hasOnlyPersistableKeys(cell, PERSISTABLE_TABLE_CELL_FIELDS) &&
+        (cell.fill === undefined || cell.fill === null || typeof cell.fill === 'string') &&
+        (cell.text === undefined || isPersistableSlateElement(cell.text))
+    )
+  );
+}
+
+function hasPersistableTableStrokeFields(value: Record<string, unknown>): boolean {
+  return (
+    (value.angle === undefined ||
+      (typeof value.angle === 'number' && Number.isFinite(value.angle))) &&
+    (value.strokeColor === undefined ||
+      value.strokeColor === null ||
+      typeof value.strokeColor === 'string') &&
+    (value.strokeStyle === undefined ||
+      (typeof value.strokeStyle === 'string' &&
+        PERSISTABLE_FREEHAND_STROKE_STYLES.has(value.strokeStyle)))
+  );
+}
+
+function isPersistableMindElement(value: Record<string, unknown>, root: boolean): boolean {
+  return (
+    hasOnlyPersistableKeys(value, PERSISTABLE_MIND_FIELDS) &&
+    (root ? value.type === 'mind' || value.type === 'mindmap' : value.type === 'mind_child') &&
+    isPersistableMindData(value.data) &&
+    Array.isArray(value.children) &&
+    value.children.every((child) => isRecord(child) && isPersistableMindElement(child, false)) &&
+    hasPersistableStrokeFields(value) &&
+    (value.angle === undefined ||
+      (typeof value.angle === 'number' && Number.isFinite(value.angle))) &&
+    (value.fill === undefined || value.fill === null || typeof value.fill === 'string') &&
+    (value.manualWidth === undefined ||
+      (typeof value.manualWidth === 'number' &&
+        Number.isFinite(value.manualWidth) &&
+        value.manualWidth > 0)) &&
+    (value.branchWidth === undefined ||
+      (typeof value.branchWidth === 'number' &&
+        Number.isFinite(value.branchWidth) &&
+        value.branchWidth > 0)) &&
+    (value.rightNodeCount === undefined ||
+      (Number.isInteger(value.rightNodeCount) && (value.rightNodeCount as number) >= 0)) &&
+    (value.start === undefined ||
+      (typeof value.start === 'number' && Number.isFinite(value.start))) &&
+    (value.end === undefined || (typeof value.end === 'number' && Number.isFinite(value.end))) &&
+    (value.isCollapsed === undefined || typeof value.isCollapsed === 'boolean') &&
+    (value.branchColor === undefined ||
+      value.branchColor === null ||
+      typeof value.branchColor === 'string') &&
+    (value.branchShape === undefined || typeof value.branchShape === 'string') &&
+    (value.layout === undefined || value.layout === null || typeof value.layout === 'string') &&
+    (value.shape === undefined || typeof value.shape === 'string')
+  );
+}
+
+function isPersistableMindData(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyPersistableKeys(value, PERSISTABLE_MIND_DATA_FIELDS) &&
+    isPersistableSlateElement(value.topic) &&
+    (value.emojis === undefined ||
+      (Array.isArray(value.emojis) &&
+        value.emojis.every(
+          (emoji) =>
+            isRecord(emoji) &&
+            hasOnlyPersistableKeys(emoji, PERSISTABLE_MIND_EMOJI_FIELDS) &&
+            typeof emoji.name === 'string'
+        ))) &&
+    (value.image === undefined ||
+      (isRecord(value.image) &&
+        hasOnlyPersistableKeys(value.image, PERSISTABLE_MIND_IMAGE_FIELDS) &&
+        typeof value.image.url === 'string' &&
+        typeof value.image.width === 'number' &&
+        Number.isFinite(value.image.width) &&
+        value.image.width > 0 &&
+        typeof value.image.height === 'number' &&
+        Number.isFinite(value.image.height) &&
+        value.image.height > 0))
+  );
+}
+
+function isPersistableSlateElement(value: unknown): boolean {
+  if (!isRecord(value) || !hasOnlyPersistableKeys(value, PERSISTABLE_SLATE_ELEMENT_FIELDS)) {
+    return false;
+  }
+  if (value.type !== undefined && value.type !== 'paragraph' && value.type !== 'link') {
+    return false;
+  }
+  if (value.type === 'link' && typeof value.url !== 'string') {
+    return false;
+  }
+  if (value.type !== 'link' && value.url !== undefined) {
+    return false;
+  }
+  if (
+    value.align !== undefined &&
+    value.align !== 'left' &&
+    value.align !== 'center' &&
+    value.align !== 'right'
+  ) {
+    return false;
+  }
+  if (
+    value.direction !== undefined &&
+    value.direction !== 'horizontal' &&
+    value.direction !== 'vertical'
+  ) {
+    return false;
+  }
+  return Array.isArray(value.children) && value.children.every(isPersistableSlateNode);
+}
+
+function isPersistableSlateNode(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (typeof value.text === 'string') {
+    return (
+      hasOnlyPersistableKeys(value, PERSISTABLE_SLATE_TEXT_FIELDS) &&
+      Object.entries(value).every(([key, entry]) => {
+        if (key === 'text' || key === 'color') {
+          return typeof entry === 'string';
+        }
+        if (key === 'font-size') {
+          return (
+            (typeof entry === 'string' && entry.trim().length > 0) ||
+            (typeof entry === 'number' && Number.isFinite(entry) && entry > 0)
+          );
+        }
+        return typeof entry === 'boolean';
+      })
+    );
+  }
+  return isPersistableSlateElement(value);
+}
+
+export function getBoardPersistenceWarning(board: BoardState): string | undefined {
+  if (containsForbiddenPersistedInputData(board.children)) {
+    return BOARD_INK_PRIVACY_WARNING;
+  }
+  return !isSafeStoredBoardValue(board) ||
+    !isExactPersistableViewport(board.viewport) ||
+    !isExactPersistableTheme(board.theme) ||
+    containsUnsupportedPersistedElementData(board.children)
+    ? BOARD_ELEMENT_SCHEMA_WARNING
+    : undefined;
+}
+
+function hasForbiddenPersistedInputValue(value: unknown, strictInkContext = false): boolean {
+  const pending: Array<{
+    readonly value: unknown;
+    readonly strictInkContext: boolean;
+  }> = [{ value, strictInkContext }];
+  const seen = new WeakSet<object>();
+  let remaining = MAX_BOARD_VALUE_COUNT;
+  while (pending.length > 0) {
+    remaining -= 1;
+    if (remaining < 0) {
+      return true;
+    }
+    const currentItem = pending.pop();
+    if (!currentItem) {
+      continue;
+    }
+    const current = currentItem.value;
+    if (current === null || typeof current !== 'object') {
+      if (typeof current === 'function' || typeof current === 'symbol') {
+        return true;
+      }
+      continue;
+    }
+    if (seen.has(current)) {
+      return true;
+    }
+    seen.add(current);
+
+    if (Array.isArray(current)) {
+      for (let index = 0; index < current.length; index += 1) {
+        if (!(index in current)) {
+          return true;
+        }
+        pending.push({
+          value: current[index],
+          strictInkContext: currentItem.strictInkContext,
+        });
+      }
+      continue;
+    }
+
+    const prototype = Object.getPrototypeOf(current);
+    if (prototype !== Object.prototype && prototype !== null) {
+      return true;
+    }
+    for (const [key, entry] of Object.entries(current)) {
+      if (
+        isForbiddenPersistedInputKey(key) &&
+        (currentItem.strictInkContext || !isAllowedLayoutDimensionKey(key))
+      ) {
+        return true;
+      }
+      pending.push({
+        value: entry,
+        strictInkContext: currentItem.strictInkContext || key === 'ink',
+      });
+    }
+  }
+  return false;
+}
+
+function normalizePersistedInkKey(key: string): string {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isForbiddenPersistedInputKey(key: string): boolean {
+  const normalized = normalizePersistedInkKey(key);
+  return (
+    FORBIDDEN_PERSISTED_INK_KEYS.has(normalized) ||
+    FORBIDDEN_PERSISTED_INK_KEY_PREFIXES.some((prefix) => normalized.startsWith(prefix)) ||
+    normalized.endsWith('timestamp')
+  );
+}
+
+function isAllowedLayoutDimensionKey(key: string): boolean {
+  const normalized = normalizePersistedInkKey(key);
+  return normalized === 'width' || normalized === 'height';
+}
+
 function parseViewport(value: unknown): Viewport | undefined {
   if (
     !isRecord(value) ||
+    Object.keys(value).some((key) => key !== 'zoom' && key !== 'origination') ||
     typeof value.zoom !== 'number' ||
     !Number.isFinite(value.zoom) ||
-    value.zoom <= 0
+    value.zoom < MIN_ZOOM ||
+    value.zoom > MAX_ZOOM
   ) {
     return undefined;
   }
@@ -1100,10 +2130,20 @@ function parseViewport(value: unknown): Viewport | undefined {
 function parseTheme(value: unknown): PlaitTheme | undefined {
   const modes = ['default', 'colorful', 'soft', 'retro', 'dark', 'starry'];
   return isRecord(value) &&
+    Object.keys(value).length === 1 &&
+    Object.prototype.hasOwnProperty.call(value, 'themeColorMode') &&
     typeof value.themeColorMode === 'string' &&
     modes.includes(value.themeColorMode)
     ? (value as unknown as PlaitTheme)
     : undefined;
+}
+
+function isExactPersistableViewport(value: unknown): boolean {
+  return value === undefined || parseViewport(value) !== undefined;
+}
+
+function isExactPersistableTheme(value: unknown): boolean {
+  return value === undefined || parseTheme(value) !== undefined;
 }
 
 function parsePreferences(value: Partial<Preferences> | undefined): Partial<Preferences> {
@@ -1234,7 +2274,9 @@ function parseExplicitContext(value: unknown): Partial<ExplicitBoardContext> {
   const subjects = ['unknown', 'math', 'physics', 'language', 'other'] as const;
   return {
     ...(sessionModes.includes(value.sessionMode as ExplicitBoardContext['sessionMode'])
-      ? { sessionMode: value.sessionMode as ExplicitBoardContext['sessionMode'] }
+      ? {
+          sessionMode: value.sessionMode as ExplicitBoardContext['sessionMode'],
+        }
       : {}),
     ...(subjects.includes(value.subject as ExplicitBoardContext['subject'])
       ? { subject: value.subject as ExplicitBoardContext['subject'] }
@@ -1270,38 +2312,47 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function persistItem(store: MagicStores[keyof MagicStores], key: string, value: unknown): void {
-  try {
-    void store.setItem(key, value).catch((error: unknown) => {
-      console.warn(`Magic Blackboard could not persist "${key}".`, error);
-    });
-  } catch (error) {
-    console.warn(`Magic Blackboard could not persist "${key}".`, error);
-  }
-}
-
-function persistItemUnlessLocked(
-  locks: readonly StorageSlot[],
+function persistItem(
+  session: AppSession,
   slot: StorageSlot,
   store: MagicStores[keyof MagicStores],
   key: string,
   value: unknown
 ): void {
-  if (!locks.includes(slot)) {
-    persistItem(store, key, value);
+  if (slot === 'board.document' && !isSafeStoredBoardValue(value)) {
+    session.onPersistenceValidationFailure(slot, BOARD_ELEMENT_SCHEMA_WARNING);
+    return;
+  }
+  try {
+    void store.setItem(key, value).catch((error: unknown) => {
+      session.onPersistenceFailure(slot, key, error);
+    });
+  } catch (error) {
+    session.onPersistenceFailure(slot, key, error);
+  }
+}
+
+function persistItemUnlessLocked(
+  session: AppSession,
+  slot: StorageSlot,
+  store: MagicStores[keyof MagicStores],
+  key: string,
+  value: unknown
+): void {
+  if (!session.persistenceLocks.has(slot)) {
+    persistItem(session, slot, store, key, value);
   }
 }
 
 function persistItemNow(
   session: AppSession,
-  locks: readonly StorageSlot[],
   slot: StorageSlot,
   store: MagicStores[keyof MagicStores],
   key: string,
   value: unknown
 ): void {
   cancelPendingPersistence(session, slot);
-  persistItemUnlessLocked(locks, slot, store, key, value);
+  persistItemUnlessLocked(session, slot, store, key, value);
 }
 
 function cancelPendingPersistence(session: AppSession, slot: StorageSlot): void {
@@ -1326,16 +2377,315 @@ function shouldScheduleDocumentPersistence(operations: BoardChangeData['operatio
   return operations.some((operation) => operation.type !== 'set_selection');
 }
 
+function getIncrementalBoardPersistenceWarning(
+  change: BoardChangeData,
+  previousBoard: BoardState | null,
+  nextBoard: BoardState
+): string | undefined {
+  if (
+    !isExactPersistableViewport(nextBoard.viewport) ||
+    !isExactPersistableTheme(nextBoard.theme)
+  ) {
+    return BOARD_ELEMENT_SCHEMA_WARNING;
+  }
+  if (change.operations.length === 0 && previousBoard?.children !== nextBoard.children) {
+    return getBoardPersistenceWarning(nextBoard);
+  }
+  if (changeIntroducesForbiddenInputData(change, nextBoard)) {
+    return BOARD_INK_PRIVACY_WARNING;
+  }
+  return changeIntroducesUnsupportedElementData(change, nextBoard)
+    ? BOARD_ELEMENT_SCHEMA_WARNING
+    : undefined;
+}
+
+function changeIntroducesForbiddenInputData(
+  change: BoardChangeData,
+  nextBoard: BoardState
+): boolean {
+  return change.operations.some((operation) => {
+    if (!isRecord(operation)) {
+      return false;
+    }
+    const operationRecord: Record<string, unknown> = operation;
+    const candidates = [operationRecord.node, operationRecord.newProperties].filter(isRecord);
+    if (candidates.length === 0) {
+      return false;
+    }
+    const path = Array.isArray(operationRecord.path) ? operationRecord.path : [];
+    const topLevelIndex = path[0];
+    const changedElement =
+      typeof topLevelIndex === 'number' ? nextBoard.children[topLevelIndex] : undefined;
+    const strictInkContext =
+      candidates.some((candidate) => candidate.type === 'freehand') ||
+      (isRecord(changedElement) && changedElement.type === 'freehand');
+    return candidates.some((candidate) =>
+      hasForbiddenPersistedElementPatch(candidate, strictInkContext)
+    );
+  });
+}
+
+function changeIntroducesUnsupportedElementData(
+  change: BoardChangeData,
+  nextBoard: BoardState
+): boolean {
+  if (
+    change.operations.some(
+      (operation) =>
+        isRecord(operation) &&
+        (operation.type === 'insert_node' ||
+          operation.type === 'remove_node' ||
+          operation.type === 'move_node' ||
+          (isRecord(operation.newProperties) &&
+            ['groupId', 'id', 'type'].some((key) =>
+              Object.prototype.hasOwnProperty.call(operation.newProperties, key)
+            )))
+    )
+  ) {
+    return getBoardPersistenceWarning(nextBoard) !== undefined;
+  }
+  return change.operations.some((operation) => {
+    if (!isRecord(operation)) {
+      return false;
+    }
+    const operationRecord: Record<string, unknown> = operation;
+    // Structural/group changes were validated once against the complete
+    // post-operation document above. A grouped paste inserts members before
+    // its group node, so validating each insert as a singleton would falsely
+    // reject a final graph that is valid.
+    if (isRecord(operationRecord.node)) {
+      return false;
+    }
+    if (!isRecord(operationRecord.newProperties)) {
+      return false;
+    }
+    const path = Array.isArray(operationRecord.path) ? operationRecord.path : [];
+    const topLevelIndex = path[0];
+    const changedElement =
+      typeof topLevelIndex === 'number' ? nextBoard.children[topLevelIndex] : undefined;
+    return hasUnsupportedPersistedFreehandPatch(operationRecord.newProperties, changedElement);
+  });
+}
+
+function hasUnsupportedPersistedFreehandPatch(
+  patch: Record<string, unknown>,
+  changedElement: unknown
+): boolean {
+  const finalElement = isRecord(changedElement)
+    ? changedElement
+    : patch.type !== undefined
+      ? patch
+      : undefined;
+  if (finalElement && finalElement.type !== 'freehand') {
+    return hasUnsupportedPersistedElementPatch(patch, finalElement);
+  }
+  if (finalElement?.type === 'freehand') {
+    for (const [key, value] of Object.entries(patch)) {
+      if (!PERSISTABLE_FREEHAND_FIELDS.has(key)) {
+        return true;
+      }
+      if (key === 'points') {
+        if (!Array.isArray(value) || value.length === 0) {
+          return true;
+        }
+        if (
+          Object.prototype.hasOwnProperty.call(finalElement, 'ink') &&
+          (!Array.isArray(finalElement.points) ||
+            !isAlignedKnownFreehandInk(finalElement.ink, finalElement.points.length))
+        ) {
+          return true;
+        }
+        continue;
+      }
+      if (!isPersistableFreehandField(key, value, finalElement)) {
+        return true;
+      }
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'ink')) {
+    if (
+      !finalElement ||
+      finalElement.type !== 'freehand' ||
+      !Array.isArray(finalElement.points) ||
+      !isValidFreehandInkData(patch.ink, finalElement.points.length)
+    ) {
+      return true;
+    }
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(patch, 'type') &&
+    finalElement &&
+    Object.prototype.hasOwnProperty.call(finalElement, 'ink') &&
+    (finalElement.type !== 'freehand' ||
+      !Array.isArray(finalElement.points) ||
+      !isAlignedKnownFreehandInk(finalElement.ink, finalElement.points.length))
+  ) {
+    return true;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(patch, 'points') &&
+    finalElement?.type === 'freehand' &&
+    Object.prototype.hasOwnProperty.call(finalElement, 'ink') &&
+    (!Array.isArray(finalElement.points) ||
+      !isAlignedKnownFreehandInk(finalElement.ink, finalElement.points.length))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function hasUnsupportedPersistedElementPatch(
+  patch: Record<string, unknown>,
+  finalElement: Record<string, unknown>
+): boolean {
+  const allowed = getPersistableElementFields(finalElement.type);
+  if (!allowed || Object.keys(patch).some((key) => !allowed.has(key))) {
+    return true;
+  }
+  return Object.entries(patch).some(([key, value]) => {
+    switch (key) {
+      case 'points':
+        return !Array.isArray(value) || value.length === 0 || !value.every(isPoint);
+      case 'text':
+        return value !== undefined && !isPersistableSlateElement(value);
+      case 'texts':
+        return !isPersistableDrawTextArray(value);
+      case 'rows':
+        return !isPersistableTableAxes(value, 'height');
+      case 'columns':
+        return !isPersistableTableAxes(value, 'width');
+      case 'cells':
+        return !isPersistableTableCells(value);
+      case 'source':
+      case 'target':
+        return !isPersistableArrowHandle(value);
+      case 'data':
+        return !isPersistableMindData(value);
+      case 'children':
+        return (
+          !Array.isArray(value) ||
+          !value.every((child) => isRecord(child) && isPersistableMindElement(child, false))
+        );
+      case 'id':
+      case 'type':
+      case 'shape':
+      case 'url':
+      case 'groupId':
+      case 'branchShape':
+        return typeof value !== 'string' || value.trim().length === 0;
+      case 'layout':
+        return value !== null && (typeof value !== 'string' || value.trim().length === 0);
+      case 'fill':
+      case 'strokeColor':
+      case 'branchColor':
+        return value !== undefined && value !== null && typeof value !== 'string';
+      case 'strokeWidth':
+      case 'branchWidth':
+      case 'manualWidth':
+        return (
+          value !== undefined &&
+          (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)
+        );
+      case 'angle':
+      case 'start':
+      case 'end':
+      case 'rightNodeCount':
+        return value !== undefined && (typeof value !== 'number' || !Number.isFinite(value));
+      case 'opacity':
+        return (
+          value !== undefined &&
+          (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1)
+        );
+      case 'strokeStyle':
+        return (
+          value !== undefined &&
+          (typeof value !== 'string' || !PERSISTABLE_FREEHAND_STROKE_STYLES.has(value))
+        );
+      case 'fillStyle':
+        return (
+          value !== undefined &&
+          (typeof value !== 'string' || !PERSISTABLE_FREEHAND_FILL_STYLES.has(value))
+        );
+      case 'autoSize':
+      case 'header':
+      case 'isCollapsed':
+        return value !== undefined && typeof value !== 'boolean';
+      default:
+        return false;
+    }
+  });
+}
+
+function getPersistableElementFields(type: unknown): ReadonlySet<string> | undefined {
+  switch (type) {
+    case 'geometry':
+      return PERSISTABLE_GEOMETRY_FIELDS;
+    case 'arrow-line':
+    case 'line':
+      return PERSISTABLE_ARROW_LINE_FIELDS;
+    case 'vector-line':
+      return PERSISTABLE_VECTOR_LINE_FIELDS;
+    case 'image':
+      return PERSISTABLE_IMAGE_FIELDS;
+    case 'table':
+    case 'swimlane':
+      return PERSISTABLE_TABLE_FIELDS;
+    case 'group':
+      return PERSISTABLE_GROUP_FIELDS;
+    case 'mind':
+    case 'mindmap':
+    case 'mind_child':
+      return PERSISTABLE_MIND_FIELDS;
+    case 'freehand':
+      return PERSISTABLE_FREEHAND_FIELDS;
+    default:
+      return undefined;
+  }
+}
+
+function isAlignedKnownFreehandInk(value: unknown, expectedPointCount: number): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const keys = Object.keys(value);
+  return (
+    keys.length === 2 &&
+    keys.includes('version') &&
+    keys.includes('widths') &&
+    value.version === 1 &&
+    Array.isArray(value.widths) &&
+    value.widths.length === expectedPointCount
+  );
+}
+
+function hasForbiddenPersistedElementPatch(
+  value: Record<string, unknown>,
+  strictInkContext: boolean
+): boolean {
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === 'points') {
+      continue;
+    }
+    if (
+      (isForbiddenPersistedInputKey(key) &&
+        (strictInkContext || !isAllowedLayoutDimensionKey(key))) ||
+      hasForbiddenPersistedInputValue(entry, strictInkContext || key === 'ink')
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function schedulePersistItem(
   session: AppSession,
-  locks: readonly StorageSlot[],
   slot: StorageSlot,
   store: MagicStores[keyof MagicStores],
   key: string,
   value: unknown,
   delay: number
 ): void {
-  if (locks.includes(slot)) {
+  if (session.persistenceLocks.has(slot)) {
     return;
   }
   const pending = session.pendingPersistence.get(slot);
@@ -1353,7 +2703,7 @@ function schedulePersistItem(
     if (session.pendingPersistence.get(slot)?.flush === flush) {
       session.pendingPersistence.delete(slot);
     }
-    persistItem(store, key, value);
+    persistItem(session, slot, store, key, value);
   };
   const timer = setTimeout(flush, delay);
   session.pendingPersistence.set(slot, { timer, flush });
@@ -1391,7 +2741,7 @@ const PRODUCT_COPY = {
     other: '其他',
     explicitContextNote: '显式选择优先；自动意图识别尚未接入。',
     recoveryWarning: (count: number) =>
-      `${count} 项本地状态未能恢复，已使用安全默认值并暂停受影响项的自动保存；原存储未修改。`,
+      `检测到 ${count} 项本地恢复、保存或数据最小化问题；受影响项的自动保存已暂停，本次更改可能未保存，请勿依赖自动保存。`,
   },
   en: {
     context: 'Context',
@@ -1407,7 +2757,7 @@ const PRODUCT_COPY = {
     other: 'Other',
     explicitContextNote: 'Explicit choices take priority; automatic intent recognition is offline.',
     recoveryWarning: (count: number) =>
-      `${count} local item(s) could not be restored. Safe defaults are active and autosave is paused for affected items; the original storage was not modified.`,
+      `${count} local recovery, save, or data-minimization issue(s) detected. Autosave is paused for affected items; recent changes may be unsaved, so do not rely on autosave.`,
   },
 } as const;
 

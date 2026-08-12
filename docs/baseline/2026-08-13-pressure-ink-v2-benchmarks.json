@@ -1,0 +1,206 @@
+[
+  {
+    "browser": "system-chrome",
+    "browserVersion": "151.0.7922.109",
+    "durationMs": 10000,
+    "mode": "legacy",
+    "method": "Synthetic 60 Hz mouse path with every ink feature off; dispatch timing is capture-to-bubble synchronous event cost.",
+    "url": "http://127.0.0.1:7300",
+    "dispatchMs": {
+      "count": 601,
+      "max": 1.5,
+      "p50": 0.6,
+      "p95": 0.9
+    },
+    "frameIntervalMs": {
+      "count": 1239,
+      "max": 33.6,
+      "p50": 8.3,
+      "p95": 10
+    },
+    "heapDeltaBytes": -643995,
+    "longTaskMs": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    },
+    "mutationCount": 1291,
+    "pointerMoves": 601,
+    "renderedElementCount": 1,
+    "svgNodeCount": 55,
+    "persistedPointCount": 601,
+    "persistedWithoutInk": true
+  },
+  {
+    "browser": "system-chrome",
+    "browserVersion": "151.0.7922.109",
+    "durationMs": 10000,
+    "mode": "legacy",
+    "method": "Synthetic 60 Hz mouse path with every ink feature off; dispatch timing is capture-to-bubble synchronous event cost.",
+    "url": "http://127.0.0.1:7300",
+    "dispatchMs": {
+      "count": 601,
+      "max": 1.8,
+      "p50": 0.6,
+      "p95": 0.9
+    },
+    "frameIntervalMs": {
+      "count": 1238,
+      "max": 25,
+      "p50": 8.3,
+      "p95": 10
+    },
+    "heapDeltaBytes": -772863,
+    "longTaskMs": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    },
+    "mutationCount": 1291,
+    "pointerMoves": 601,
+    "renderedElementCount": 1,
+    "svgNodeCount": 55,
+    "persistedPointCount": 601,
+    "persistedWithoutInk": true
+  },
+  {
+    "browser": "system-chrome",
+    "browserVersion": "151.0.7922.109",
+    "durationMs": 10000,
+    "mode": "legacy",
+    "method": "Synthetic 60 Hz mouse path with every ink feature off; dispatch timing is capture-to-bubble synchronous event cost.",
+    "url": "http://127.0.0.1:7300",
+    "dispatchMs": {
+      "count": 601,
+      "max": 1.6,
+      "p50": 0.5,
+      "p95": 0.8
+    },
+    "frameIntervalMs": {
+      "count": 1238,
+      "max": 33.2,
+      "p50": 8.3,
+      "p95": 10.1
+    },
+    "heapDeltaBytes": -673119,
+    "longTaskMs": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    },
+    "mutationCount": 1291,
+    "pointerMoves": 601,
+    "renderedElementCount": 1,
+    "svgNodeCount": 55,
+    "persistedPointCount": 601,
+    "persistedWithoutInk": true
+  },
+  {
+    "browser": "system-chrome",
+    "browserVersion": "151.0.7922.109",
+    "durationMs": 10000,
+    "mode": "simulated-pressure",
+    "method": "Simulated 60 Hz pen pointer events with two monotonic coalesced samples per move and variable pressure; dispatch timing excludes rAF preview work.",
+    "url": "http://127.0.0.1:7300",
+    "dispatchMs": {
+      "count": 599,
+      "max": 0.4,
+      "p50": 0.1,
+      "p95": 0.2
+    },
+    "frameIntervalMs": {
+      "count": 1235,
+      "max": 10.4,
+      "p50": 8.3,
+      "p95": 10
+    },
+    "heapDeltaBytes": 4852768,
+    "longTaskMs": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    },
+    "mutationCount": 1239,
+    "pointerMoves": 599,
+    "renderedElementCount": 1,
+    "svgNodeCount": 55,
+    "inkPathCount": 1,
+    "persistedPointCount": 3128,
+    "persistedWidthCount": 3128,
+    "persistedWidthSpread": 2.4
+  },
+  {
+    "browser": "system-chrome",
+    "browserVersion": "151.0.7922.109",
+    "durationMs": 10000,
+    "mode": "simulated-pressure",
+    "method": "Simulated 60 Hz pen pointer events with two monotonic coalesced samples per move and variable pressure; dispatch timing excludes rAF preview work.",
+    "url": "http://127.0.0.1:7300",
+    "dispatchMs": {
+      "count": 599,
+      "max": 0.3,
+      "p50": 0.1,
+      "p95": 0.2
+    },
+    "frameIntervalMs": {
+      "count": 1235,
+      "max": 10.4,
+      "p50": 8.3,
+      "p95": 10
+    },
+    "heapDeltaBytes": -525325,
+    "longTaskMs": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    },
+    "mutationCount": 1239,
+    "pointerMoves": 599,
+    "renderedElementCount": 1,
+    "svgNodeCount": 55,
+    "inkPathCount": 1,
+    "persistedPointCount": 3128,
+    "persistedWidthCount": 3128,
+    "persistedWidthSpread": 2.4
+  },
+  {
+    "browser": "system-chrome",
+    "browserVersion": "151.0.7922.109",
+    "durationMs": 10000,
+    "mode": "simulated-pressure",
+    "method": "Simulated 60 Hz pen pointer events with two monotonic coalesced samples per move and variable pressure; dispatch timing excludes rAF preview work.",
+    "url": "http://127.0.0.1:7300",
+    "dispatchMs": {
+      "count": 599,
+      "max": 0.3,
+      "p50": 0.1,
+      "p95": 0.2
+    },
+    "frameIntervalMs": {
+      "count": 1224,
+      "max": 100,
+      "p50": 8.3,
+      "p95": 10
+    },
+    "heapDeltaBytes": 7682044,
+    "longTaskMs": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    },
+    "mutationCount": 1229,
+    "pointerMoves": 599,
+    "renderedElementCount": 1,
+    "svgNodeCount": 55,
+    "inkPathCount": 1,
+    "persistedPointCount": 3128,
+    "persistedWidthCount": 3128,
+    "persistedWidthSpread": 2.4
+  }
+]

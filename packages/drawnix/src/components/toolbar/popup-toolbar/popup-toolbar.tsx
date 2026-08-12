@@ -25,8 +25,6 @@ import {
   ArrowLineHandle,
   getStrokeColorByElement as getStrokeColorByDrawElement,
   getStrokeStyleByElement,
-  isClosedCustomGeometry,
-  isClosedDrawElement,
   isDrawElementsIncludeText,
   PlaitDrawElement,
 } from '@plait/draw';
@@ -42,6 +40,9 @@ import { Freehand } from '../../../plugins/freehand/type';
 import { PopupLinkButton } from './link-button';
 import { ArrowMarkButton } from './arrow-mark-button';
 import { MoreOptionsButton } from './more-options-button';
+import { hasFillProperty } from '../../../utils/property';
+
+export { hasFillProperty };
 
 export const PopupToolbar = () => {
   const board = useBoard();
@@ -265,24 +266,6 @@ export const getElementState = (board: PlaitBoard) => {
     return getMindElementState(board, selectedElement);
   }
   return getDrawElementState(board, selectedElement as PlaitDrawElement);
-};
-
-export const hasFillProperty = (board: PlaitBoard, element: PlaitElement) => {
-  if (MindElement.isMindElement(board, element)) {
-    return true;
-  }
-  if (isClosedCustomGeometry(board, element)) {
-    return true;
-  }
-  if (PlaitDrawElement.isDrawElement(element)) {
-    return (
-      PlaitDrawElement.isShapeElement(element) &&
-      !PlaitDrawElement.isImage(element) &&
-      !PlaitDrawElement.isText(element) &&
-      isClosedDrawElement(element)
-    );
-  }
-  return false;
 };
 
 export const hasStrokeProperty = (board: PlaitBoard, element: PlaitElement) => {

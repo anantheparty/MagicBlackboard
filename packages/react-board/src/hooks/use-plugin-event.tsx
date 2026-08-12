@@ -11,6 +11,7 @@ import {
   toViewBoxPoint,
 } from '@plait/core';
 import { useEventListener } from 'ahooks';
+import { dispatchBoardPointerLifecycle } from '../plugins/pointer-lifecycle';
 
 const useBoardPluginEvent = (
   board: PlaitBoard,
@@ -47,6 +48,28 @@ const useBoardPluginEvent = (
     'pointerup',
     (event) => {
       board.pointerUp(event);
+    },
+    { target: viewportContainerRef }
+  );
+
+  useEventListener(
+    'pointercancel',
+    (event) => {
+      dispatchBoardPointerLifecycle(board, {
+        reason: 'pointer-cancel',
+        pointerId: event.pointerId,
+      });
+    },
+    { target: viewportContainerRef }
+  );
+
+  useEventListener(
+    'lostpointercapture',
+    (event) => {
+      dispatchBoardPointerLifecycle(board, {
+        reason: 'lost-pointer-capture',
+        pointerId: event.pointerId,
+      });
     },
     { target: viewportContainerRef }
   );
@@ -92,6 +115,10 @@ const useBoardPluginEvent = (
 
   useEventListener('pointerup', (event) => {
     board.globalPointerUp(event);
+  });
+
+  useEventListener('orientationchange', () => {
+    dispatchBoardPointerLifecycle(board, { reason: 'orientation-change' });
   });
 
   useEventListener('keydown', (event) => {

@@ -16,6 +16,7 @@ import {
   WritableClipboardOperationType,
 } from '@plait/core';
 import { MindElement } from '@plait/mind';
+import { normalizeTtdElementsForInsertion } from './normalize-elements-for-insertion';
 
 export interface MarkdownToDrawnixLibProps {
   loaded: boolean;
@@ -97,10 +98,10 @@ const MarkdownToDrawnix = () => {
     const origination = getViewportOrigination(board);
     const focusX = origination![0] + focusPoint[0] / zoom;
     const focusY = origination![1] + focusPoint[1] / zoom;
-    const elements = value;
+    const elements = normalizeTtdElementsForInsertion(value);
     board.insertFragment(
       {
-        elements: JSON.parse(JSON.stringify(elements)),
+        elements,
       },
       [focusX, focusY],
       WritableClipboardOperationType.paste

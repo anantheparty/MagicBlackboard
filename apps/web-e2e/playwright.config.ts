@@ -36,7 +36,7 @@ export default defineConfig({
             {
               outputDir: '../../dist/.playwright/apps/web-e2e/blob-report',
             },
-          ],
+          ] as const,
         ]
       : []),
   ],

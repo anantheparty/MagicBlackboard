@@ -75,6 +75,10 @@ const viTranslations: Translations = {
   'toast.copyToClipboard.svg': 'Đã sao chép các mục đã chọn dưới dạng SVG vào bộ nhớ tạm',
   'toast.copyToClipboard.png': 'Đã sao chép các mục đã chọn dưới dạng PNG vào bộ nhớ tạm',
   'toast.copyToClipboard.mode.transparent': '(Nền trong suốt)',
+  'toast.image.insertError': 'Không thể chèn hình ảnh',
+  'toast.image.tooLarge': 'Hình ảnh phải có dung lượng không quá 8 MB.',
+  'toast.file.saveError': 'Không thể lưu tệp Drawnix',
+  'toast.file.unsupportedDocument': 'Bảng vượt quá giới hạn tài liệu hoặc tài nguyên được hỗ trợ.',
   // Language
   'language.switcher': 'Ngôn ngữ',
   'language.chinese': '中文',

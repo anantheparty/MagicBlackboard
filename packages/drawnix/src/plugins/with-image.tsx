@@ -11,9 +11,10 @@ import {
   WritableClipboardOperationType,
 } from '@plait/core';
 import { isSupportedImageFileType } from '../data/blob';
-import { insertImage } from '../data/image';
+import { insertImageWithFeedback } from '../data/image';
 import { isHitImage, MindElement, ImageData } from '@plait/mind';
 import { ImageViewer } from '../libs/image-viewer';
+import { registerBoardDisposer } from '@plait-board/react-board';
 
 export const withImagePlugin = (board: PlaitBoard) => {
   const newBoard = board as PlaitBoard & PlaitImageBoard;
@@ -24,6 +25,7 @@ export const withImagePlugin = (board: PlaitBoard) => {
     maxZoom: 5,
     enableKeyboard: true,
   });
+  registerBoardDisposer(board, () => viewer.destroy());
 
   newBoard.insertFragment = (
     clipboardData: ClipboardData | null,
@@ -32,7 +34,7 @@ export const withImagePlugin = (board: PlaitBoard) => {
   ) => {
     if (clipboardData?.files?.length && isSupportedImageFileType(clipboardData.files[0].type)) {
       const imageFile = clipboardData.files[0];
-      insertImage(board, imageFile, targetPoint, false);
+      insertImageWithFeedback(board, imageFile, targetPoint, false);
       return;
     }
     insertFragment(clipboardData, targetPoint, operationType);
@@ -43,7 +45,7 @@ export const withImagePlugin = (board: PlaitBoard) => {
       const imageFile = event.dataTransfer.files[0];
       if (isSupportedImageFileType(imageFile.type)) {
         const point = toViewBoxPoint(board, toHostPoint(board, event.x, event.y));
-        insertImage(board, imageFile, point, true);
+        insertImageWithFeedback(board, imageFile, point, true);
         return true;
       }
     }

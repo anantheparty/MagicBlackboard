@@ -15,4 +15,6 @@ export interface BoardChangeData {
   viewport: Viewport;
   selection: Selection | null;
   theme: PlaitTheme;
+  /** A whole-document replacement that did not originate from Plait operations. */
+  source?: 'document-replace';
 }

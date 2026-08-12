@@ -28,6 +28,8 @@ export class ImageViewer {
   private mouseUpHandler: (() => void) | null = null;
   private animationFrameId: number | null = null;
   private pendingUpdate = false;
+  private eventsBound = false;
+  private bodyOverflowBeforeOpen: string | null = null;
   private state: ImageState = {
     zoom: 1,
     x: 0,
@@ -53,9 +55,13 @@ export class ImageViewer {
 
   // 打开图片查看器
   open(src: string, alt = ''): void {
+    if (this.overlay) {
+      this.close();
+    }
     this.createOverlay();
     this.createImage(src, alt);
     this.resetState();
+    this.bodyOverflowBeforeOpen = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
   }
 
@@ -65,30 +71,24 @@ export class ImageViewer {
       // 清理拖动事件监听器
       this.cleanupDragEvents();
 
-      // 清理全局事件监听器
-      document.removeEventListener('mousemove', this.delegationHandler!);
-      document.removeEventListener('mouseup', this.delegationHandler!);
-      document.removeEventListener('keydown', this.delegationHandler!);
-      document.removeEventListener('wheel', this.delegationHandler!);
-
       // 取消动画帧
-      if (this.animationFrameId) {
+      if (this.animationFrameId !== null) {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
       }
 
-      document.body.removeChild(this.overlay);
+      this.overlay.remove();
       this.overlay = null;
       this.image = null;
       this.imageContainer = null;
       this.closeButton = null;
       this.controlsContainer = null;
-      this.delegationHandler = null;
       this.dragHandler = null;
       this.mouseUpHandler = null;
       this.pendingUpdate = false;
+      document.body.style.overflow = this.bodyOverflowBeforeOpen ?? '';
+      this.bodyOverflowBeforeOpen = null;
     }
-    document.body.style.overflow = '';
   }
 
   // 创建遮罩层
@@ -312,6 +312,17 @@ export class ImageViewer {
     document.addEventListener('wheel', this.delegationHandler, {
       passive: false,
     });
+    this.eventsBound = true;
+  }
+
+  private unbindEvents(): void {
+    if (!this.eventsBound || !this.delegationHandler) {
+      return;
+    }
+    document.removeEventListener('keydown', this.delegationHandler);
+    document.removeEventListener('wheel', this.delegationHandler);
+    this.eventsBound = false;
+    this.delegationHandler = null;
   }
 
   // 放大
@@ -397,7 +408,7 @@ export class ImageViewer {
   // 移除样式
   private removeStyles(): void {
     if (this.styleElement) {
-      document.head.removeChild(this.styleElement);
+      this.styleElement.remove();
       this.styleElement = null;
     }
   }
@@ -405,6 +416,7 @@ export class ImageViewer {
   // 销毁实例
   destroy(): void {
     this.close();
+    this.unbindEvents();
     this.removeStyles();
   }
 }

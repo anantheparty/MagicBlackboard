@@ -1,0 +1,27 @@
+{
+  "type": "drawnix",
+  "version": 1,
+  "source": "web",
+  "elements": [
+    {
+      "id": "legacy-freehand-v1",
+      "type": "freehand",
+      "shape": "feltTipPen",
+      "points": [
+        [120, 140],
+        [136, 148],
+        [154, 143],
+        [176, 158],
+        [201, 150]
+      ],
+      "strokeColor": "#1d1d1f",
+      "strokeWidth": 2
+    }
+  ],
+  "viewport": {
+    "zoom": 1
+  },
+  "theme": {
+    "themeColorMode": "default"
+  }
+}

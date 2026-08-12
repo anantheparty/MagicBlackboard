@@ -6,6 +6,7 @@ import type {
   MagicCanvasSelection,
   MagicCanvasSnapshot,
   MagicActor,
+  MagicInkDiagnosticsEntry,
 } from '@magic-blackboard/core';
 import { describe, expect, it, vi } from 'vitest';
 import { createMagicRuntime, MagicRuntimeCleanupError } from './runtime';
@@ -105,6 +106,26 @@ class FailingSubscriptionCanvas extends TestCanvas {
   }
 }
 
+const inkEntry = (observedAt: number): MagicInkDiagnosticsEntry => ({
+  observedAt,
+  pointerType: 'pen',
+  isPrimary: true,
+  button: -1,
+  buttons: 1,
+  source: 'coalesced',
+  strategy: 'hardware-pressure',
+  receivedSamples: 3,
+  acceptedSamples: 3,
+  coalescedSamples: 3,
+  droppedSamples: 0,
+  pressure: {
+    capability: 'variable-observed',
+    minimum: 0.2,
+    maximum: 0.8,
+    distinctBucketCount: 3,
+  },
+});
+
 describe('createMagicRuntime', () => {
   it('isolates board state, events, features, and canvas ownership', async () => {
     const firstCanvas = new TestCanvas();
@@ -129,12 +150,15 @@ describe('createMagicRuntime', () => {
     await first.features.setEnabled('magic.actor', true);
     await first.settings.set('board.value', 'first');
     await second.settings.set('board.value', 'second');
+    first.inkDiagnostics.record(inkEntry(10));
     first.events.emit('canvas:attached', { runtimeId: first.id, boardId: first.boardId });
 
     expect(first.features.isEnabled('magic.actor')).toBe(true);
     expect(second.features.isEnabled('magic.actor')).toBe(false);
     expect(await first.settings.get('board.value')).toBe('first');
     expect(await second.settings.get('board.value')).toBe('second');
+    expect(first.inkDiagnostics.getSnapshot()).toMatchObject({ size: 1, capacity: 256 });
+    expect(second.inkDiagnostics.getSnapshot()).toMatchObject({ size: 0, capacity: 256 });
     expect(firstEvents).toHaveBeenCalledTimes(1);
     expect(secondEvents).not.toHaveBeenCalled();
 
@@ -153,7 +177,10 @@ describe('createMagicRuntime', () => {
     expect(first.canvas).toBeNull();
     expect(firstCanvas.dispose).toHaveBeenCalledTimes(1);
     expect(firstCanvas.subscriptionCount).toBe(0);
+    expect(first.inkDiagnostics.disposed).toBe(true);
+    expect(first.inkDiagnostics.getSnapshot().size).toBe(0);
     expect(second.disposed).toBe(false);
+    expect(second.inkDiagnostics.disposed).toBe(false);
     expect(second.canvas).toBe(secondCanvas);
     expect(secondCanvas.dispose).not.toHaveBeenCalled();
 
@@ -207,6 +234,11 @@ describe('createMagicRuntime', () => {
       dispose: actorDispose,
     };
     const runtime = createMagicRuntime({ canvas, actors: [actor] });
+    const diagnosticsDispose = vi
+      .spyOn(runtime.inkDiagnostics, 'dispose')
+      .mockImplementation(() => {
+        throw new Error('diagnostics dispose failed');
+      });
     runtime.events.subscribe('runtime:disposing', () => {
       throw new Error('listener failed');
     });
@@ -216,6 +248,7 @@ describe('createMagicRuntime', () => {
     expect(canvas.dispose).toHaveBeenCalledTimes(1);
     expect(canvas.subscriptionCount).toBe(0);
     expect(actorDispose).toHaveBeenCalledTimes(1);
+    expect(diagnosticsDispose).toHaveBeenCalledTimes(1);
     expect(runtime.features.disposed).toBe(true);
     expect(runtime.events.disposed).toBe(true);
     expect(runtime.disposed).toBe(true);
@@ -228,5 +261,33 @@ describe('createMagicRuntime', () => {
     expect(() => createMagicRuntime({ canvas })).toThrow(MagicRuntimeCleanupError);
     expect(canvas.subscriptionCount).toBe(0);
     expect(canvas.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses an independently configurable bounded diagnostics store per runtime', () => {
+    const first = createMagicRuntime({ inkDiagnosticsCapacity: 1 });
+    const second = createMagicRuntime({ inkDiagnosticsCapacity: 2 });
+
+    first.inkDiagnostics.record(inkEntry(1));
+    first.inkDiagnostics.record(inkEntry(2));
+    second.inkDiagnostics.record(inkEntry(3));
+
+    expect(first.inkDiagnostics.getSnapshot()).toMatchObject({
+      capacity: 1,
+      size: 1,
+      totals: { batches: 2 },
+    });
+    expect(first.inkDiagnostics.getSnapshot().entries[0]?.observedAt).toBe(2);
+    expect(second.inkDiagnostics.getSnapshot()).toMatchObject({
+      capacity: 2,
+      size: 1,
+      totals: { batches: 1 },
+    });
+
+    first.inkDiagnostics.clear();
+    expect(first.inkDiagnostics.getSnapshot().size).toBe(0);
+    expect(second.inkDiagnostics.getSnapshot().size).toBe(1);
+
+    first.dispose();
+    second.dispose();
   });
 });

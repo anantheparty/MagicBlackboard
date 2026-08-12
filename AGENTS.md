@@ -11,22 +11,34 @@ The product should eventually understand signals such as whether the user is tea
 and whether the board concerns mathematics, physics, language learning, or another domain. Those
 signals are uncertain evidence, not facts about a person.
 
-The current milestone is the local-first whiteboard foundation. It includes a product app,
-generic Drawnix extension seams, a per-board runtime, a Plait adapter, diagnostics, persistence,
-tests, and documentation. It does **not** include model calls, intent inference, pressure-sensitive
-ink, actor automation, collaboration, WebSockets, Electron, or native iPad code. Placeholder
-features must remain behavior-neutral and be labelled as unavailable.
+The local-first whiteboard Foundation was merged at
+`21cc3a9abbd5f28999c7e44fe03c8b69fe9ae0d4`. The **Pressure Ink V2 simulated/browser
+implementation is committed**, and its final fixed-code commit
+`15844cd51015ee7441f83ac56f690bc21011210c` has passed the recorded local automated gates. Hosted
+CI is **Verified** for PR #6 at exact head `6d980e2a76bc42f6ce8ea853dd792a69394ab810`.
+The implementation provides a default-off, backward-compatible
+variable-width path and separately controlled, bounded development diagnostics. Simulation verifies
+code paths only; it is never evidence of Apple Pencil, pen-tablet, Safari, touch, or PWA hardware
+support. Those platform conclusions remain **Unverified** until the named-device matrix is run.
+
+Pressure Ink V2 does **not** include model calls, intent inference, actor automation,
+collaboration, WebSockets, Electron, hybrid wrappers, PencilKit, or native iPad code. Both ink
+features are unavailable in production builds. The next gate is named physical-device testing;
+unavailable features must remain behavior-neutral and labelled as unavailable.
 
 Read these before changing the repository:
 
-1. `MagicBlackboard_CODEX_FIRST_PROMPT.md` — preserved source brief for the foundation milestone.
-2. `docs/00_DECISION.md` — accepted decisions and phase gates.
-3. `docs/01_ARCHITECTURE.md` — target boundaries and lifecycle.
-4. `docs/05_ACCEPTANCE_CRITERIA.md` — evidence required for completion.
-5. The nearest source, tests, `project.json`, and package README for the area being changed.
+1. `MagicBlackboard_CODEX_FIRST_PROMPT.md` — preserved source brief for the Foundation milestone.
+2. `prompts/03_PRESSURE_INK_V2.md` — the authorized Pressure Ink V2 work order.
+3. `docs/06_PRESSURE_INK_V2.md` — current entry gate, scope, evidence, and pending checks.
+4. `docs/adr/0001-pressure-ink-v2-data-and-boundaries.md` — accepted ink data and ownership decision.
+5. `docs/00_DECISION.md` and `docs/01_ARCHITECTURE.md` — accepted cross-phase decisions and lifecycle.
+6. `docs/05_ACCEPTANCE_CRITERIA.md` — historical Foundation completion evidence and unverified manual items.
+7. The nearest source, tests, `project.json`, and package README for the area being changed.
 
-The next-round pressure prompt is `prompts/03_PRESSURE_INK_V2.md`. It is a future work order,
-not permission to implement pressure ink during the foundation milestone.
+The pressure prompt's simulated/browser implementation, fixed-commit local automated gates, and
+hosted Linux/macOS CI have been satisfied. Its physical-device acceptance gate has not yet been
+recorded. Do not silently turn automated or simulated evidence into a hardware compatibility claim.
 
 ## Repository map and dependency direction
 
@@ -104,7 +116,7 @@ an upstream failure. Use the versions and generator help that are actually prese
    boundary changes.
 
 Use current Nx syntax discovered from the installed version. Prefer project-scoped commands during
-iteration; the foundation release gate is:
+iteration; the milestone release gate remains:
 
 ```bash
 npm ci
@@ -152,9 +164,9 @@ decision update in `docs/00_DECISION.md`.
 
 ## Model and data boundary
 
-The foundation must run with zero API keys. Do not add an AI SDK or make a network model request in
-this phase. Future model code must depend on a provider-neutral port and a versioned, validated
-schema. Deterministic heuristics and replay fixtures come before provider integration.
+The current milestone must run with zero API keys. Do not add an AI SDK or make a network model
+request in this phase. Future model code must depend on a provider-neutral port and a versioned,
+validated schema. Deterministic heuristics and replay fixtures come before provider integration.
 
 Never put a provider key in client code, a `VITE_*` variable, a test snapshot, an issue, a prompt,
 the repository, or browser storage. Hosted model calls require an owned server-side proxy with

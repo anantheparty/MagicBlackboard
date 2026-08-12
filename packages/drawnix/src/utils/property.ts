@@ -8,11 +8,35 @@ import {
 import { getTextMarksByElement } from '@plait/text-plugins';
 
 export const isClosedElement = (board: PlaitBoard, element: PlaitElement) => {
+  if (PlaitDrawElement.isTable(element) || PlaitDrawElement.isSwimlane(element)) {
+    return false;
+  }
   return (
     MindElement.isMindElement(board, element) ||
     (PlaitDrawElement.isDrawElement(element) && isClosedDrawElement(element)) ||
     isClosedCustomGeometry(board, element)
   );
+};
+
+export const hasFillProperty = (board: PlaitBoard, element: PlaitElement) => {
+  if (PlaitDrawElement.isTable(element) || PlaitDrawElement.isSwimlane(element)) {
+    return false;
+  }
+  if (MindElement.isMindElement(board, element)) {
+    return true;
+  }
+  if (isClosedCustomGeometry(board, element)) {
+    return true;
+  }
+  if (PlaitDrawElement.isDrawElement(element)) {
+    return (
+      PlaitDrawElement.isShapeElement(element) &&
+      !PlaitDrawElement.isImage(element) &&
+      !PlaitDrawElement.isText(element) &&
+      isClosedDrawElement(element)
+    );
+  }
+  return false;
 };
 
 export const getCurrentFill = (board: PlaitBoard, element: PlaitElement) => {

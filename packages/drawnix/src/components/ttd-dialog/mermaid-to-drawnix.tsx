@@ -20,6 +20,7 @@ import {
 } from '@plait/core';
 import type { MermaidConfig } from '@plait-board/mermaid-to-drawnix/dist';
 import type { MermaidToDrawnixResult } from '@plait-board/mermaid-to-drawnix/dist/interfaces';
+import { normalizeTtdElementsForInsertion } from './normalize-elements-for-insertion';
 
 export interface MermaidToDrawnixLibProps {
   loaded: boolean;
@@ -97,7 +98,7 @@ const MermaidToDrawnix = () => {
     const origination = getViewportOrigination(board);
     const centerX = origination![0] + focusPoint[0] / zoom;
     const centerY = origination![1] + focusPoint[1] / zoom;
-    const elements = value;
+    const elements = normalizeTtdElementsForInsertion(value);
     const elementRectangle = RectangleClient.getBoundingRectangle(
       elements
         .filter((ele) => !PlaitGroupElement.isGroup(ele))
@@ -109,7 +110,7 @@ const MermaidToDrawnix = () => {
     ] as Point;
     board.insertFragment(
       {
-        elements: JSON.parse(JSON.stringify(elements)),
+        elements,
       },
       startPoint,
       WritableClipboardOperationType.paste

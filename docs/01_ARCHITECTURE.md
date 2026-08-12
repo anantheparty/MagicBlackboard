@@ -1,6 +1,9 @@
 # 01 — 架构与边界
 
-本文描述 Foundation 完成时的目标结构和未来扩展缝隙。是否已经实现、验证，以代码、测试和 [`05_ACCEPTANCE_CRITERIA.md`](./05_ACCEPTANCE_CRITERIA.md) 中的证据为准；本文不会把计划写成现状。
+本文描述 Foundation 完成后的结构和 Pressure Ink V2 的已实现浏览器扩展。Foundation 证据以
+[`05_ACCEPTANCE_CRITERIA.md`](./05_ACCEPTANCE_CRITERIA.md) 为准；Pressure Ink V2 的实际状态
+以 [`06_PRESSURE_INK_V2.md`](./06_PRESSURE_INK_V2.md) 和对应 baseline 为准。代码实现不
+等同于最终固定 commit/hosted CI，也不等同于硬件或平台验证。
 
 ## 总览
 
@@ -44,6 +47,12 @@ Future, behind explicit phase gates
 
 保留自由画、形状、连接线、思维导图、文本、缩放、主题、导入导出等白板体验。Foundation 只允许添加最小、可选、向后兼容的扩展缝隙，例如追加 Plait plugins、利用已有 `afterInit` 取得 board、渲染通用 overlay。相同语义不能有两套 callback。
 
+Pressure Ink V2 的通用 sample/curve/geometry/renderer、可选 schema、输入 lifecycle 和
+bounded import validation 属于这里；它们不得
+import Magic package。Magic 产品如何开关实验、展示诊断和保存策略仍由 app 与 Magic
+packages 决定。具体格式和降级行为见
+[`adr/0001-pressure-ink-v2-data-and-boundaries.md`](./adr/0001-pressure-ink-v2-data-and-boundaries.md)。
+
 ### `packages/magic-core`
 
 纯 TypeScript 领域基础：typed event bus、bounded ring buffer、feature registry、settings 接口，以及不绑定具体 UI/画布的事件和值对象。它必须能在无 DOM 的单元测试中运行。订阅返回清理句柄；dispose 后行为可预测；ring buffer 固定容量。
@@ -58,7 +67,11 @@ Future, behind explicit phase gates
 
 ### `packages/magic-console`
 
-开发可观测界面，读取公开 runtime/adapter 合约，不成为业务真相来源。关闭时不订阅或渲染高频事件；production 默认不可见，仅通过公开的非密钥构建配置显式开启。诊断数据有容量上限并随 runtime 释放。
+开发可观测界面，读取公开 runtime/adapter 合约，不成为业务真相来源。关闭时不订阅或渲染
+高频事件；production 默认不可见，仅通过公开的非密钥构建配置显式开启 console shell。
+Pressure Ink V2 两个 feature 在 production build 中仍 unavailable。诊断数据有容量上限并
+随 runtime 释放；关闭 console 只停止 UI subscription/rAF refresh，采集本身由独立
+`magic.ink-diagnostics` feature 控制。
 
 ## 生命周期
 
@@ -76,6 +89,9 @@ mount app
 
 unmount app
   -> detach console subscriptions
+  -> cancel stroke-local frame/pointer capture/input listeners
+  -> dispose Drawnix-owned board/plugin/image/eraser resources
+  -> dispose ink controller
   -> canvasAdapter.detach()
   -> runtime.dispose()
   -> remove app-level listeners/timers
@@ -96,9 +112,17 @@ unmount app
 
 - schema/version 可识别，字段缺失有安全默认值；
 - 解析或迁移失败不覆盖原值；
+- 不支持、含隐私风险或不满足 schema 的 document 使该 storage slot fail closed，后续普通
+  编辑也不能静默覆盖可恢复原值；
 - 高频 pointer samples、事件流和模型 prompt/response 不进入这些 namespace；
 - 未来格式变更先写 migration 与 round-trip 测试；
 - “清空白板”与“清空设置/诊断”是不同操作。
+
+`.drawnix` import 先验证 v1/web envelope discriminants、支持的 element schema/唯一 ID、finite tree、viewport
+与 theme，再进行完整 document replacement。浏览器在读取/解析前限制文件为 32 MiB；最多
+5,000 elements、2,000,000 tree values、深度 128。单个待嵌入图片源文件为 8 MiB 上限。上述
+限制属于不可信文件边界；产品本地 storage 有独立的版本化校验，不复用 live mutable
+Plait 对象作为长期契约。
 
 浏览器存储不是加密保险箱。使用共享设备时，任何同一浏览器 profile 的人都可能访问内容；产品上线前需提供清晰的导出、删除和共享设备提示。
 
@@ -180,17 +204,49 @@ browser --authenticated, minimized request--> owned backend proxy
 - 大 board 查询按 ID/选择范围进行；整板 snapshot 的频率必须可控。
 - 性能结论需注明设备、浏览器、OS、元素量和采样方法。
 
+## Pressure Ink V2 已实现数据流
+
+状态：**Implemented in working tree; final fixed-commit verification Pending**。
+
+```text
+PointerEvent (+ coalesced events when available)
+  -> validated samples; non-empty coalesced XOR parent fallback
+  -> monotonic ordering / deduplication / bounded capture
+  -> per-pointer capability evidence
+  -> variable pen pressure OR fixed-width legacy fallback
+  -> coordinate conversion
+  -> point smoothing 0.7 + resample spacing 1.5 / zoom
+  -> pressure curve 0.35..1.65 + width smoothing 0.4
+  -> stroke-local rAF transient preview
+  -> compact final widths (2-decimal generation) aligned with existing points
+```
+
+热路径不保存 raw event、device ID 或完整 pressure history。旧 element 和无效/未知 `ink`
+数据继续走原 RoughJS 路径；pressure feature 默认关闭，mouse/touch/constant `0.5`/证据不足
+也不会生成 `ink`。只有 pen 在至少 4 个 active samples、至少 2 个 0.01 pressure buckets 且
+spread `>= 0.04` 后进入 variable strategy；没有 velocity 或 predicted geometry。
+
+optional v1 `ink` 只接受 exact `{ version: 1, widths }`；dense/non-empty/aligned widths 最多
+20,000 项，每项为有限 `0.01`–`96`。legacy/default-off 笔迹不含 `ink`，capture 与单元素
+import 上限为 100,000 points，避免产品生成无法再次加载的文档。import 接受范围内任意有限小数，只有本实现生成值量化
+到 2 位。有效 v1 使用 filled SVG geometry；missing/malformed/unknown 回退 RoughJS。有效 v1
+的 move/rotate 可用，resize 对整个含 ink 的 mixed selection 原子 no-op，legacy resize 不变。
+
+Drawnix 承担通用机制，Magic app/core/runtime/console 承担 feature、每 board 生命周期、产品
+持久化与有界诊断 policy。`magic.pressure-ink` 与 `magic.ink-diagnostics` 只在 development
+available、分别默认 off；production 均 unavailable/fail closed。
+
 ## 扩展一个新能力时放在哪里
 
-| 变化 | 正确落点 |
-| --- | --- |
-| 通用 Drawnix 可选 callback/overlay/plugin seam | `packages/drawnix`，带默认兼容测试 |
-| Plait selection/bounds/coordinate 读取 | `packages/magic-plait` |
-| 无框架事件、feature、settings 契约 | `packages/magic-core` |
-| runtime 生命周期或能力装配 | `packages/magic-runtime` |
-| Magic 品牌、布局、持久化与用户 consent | `apps/magic-blackboard` |
-| 开发诊断视图 | `packages/magic-console` |
-| provider 具体实现 | 未来独立 adapter/server 边界，先更新决策记录 |
+| 变化                                           | 正确落点                                     |
+| ---------------------------------------------- | -------------------------------------------- |
+| 通用 Drawnix 可选 callback/overlay/plugin seam | `packages/drawnix`，带默认兼容测试           |
+| Plait selection/bounds/coordinate 读取         | `packages/magic-plait`                       |
+| 无框架事件、feature、settings 契约             | `packages/magic-core`                        |
+| runtime 生命周期或能力装配                     | `packages/magic-runtime`                     |
+| Magic 品牌、布局、持久化与用户 consent         | `apps/magic-blackboard`                      |
+| 开发诊断视图                                   | `packages/magic-console`                     |
+| provider 具体实现                              | 未来独立 adapter/server 边界，先更新决策记录 |
 
 ## 研究依据（访问于 2026-08-12）
 

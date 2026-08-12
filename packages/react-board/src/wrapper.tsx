@@ -28,15 +28,16 @@ import {
   withI18n,
   updateViewBox,
   FLUSHING,
-  BoardTransforms,
 } from '@plait/core';
+import { fitViewportWithinZoomBounds } from './utils/fit-viewport';
 import { BoardChangeData } from './plugins/board';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { withReact } from './plugins/with-react';
 import { PlaitCommonElementRef, withImage, withText } from '@plait/common';
 import { BoardContext, BoardContextValue } from './hooks/use-board';
 import React from 'react';
 import { withPinchZoom } from './plugins/with-pinch-zoom-plugin';
+import { disposeBoardDisposers } from './plugins/board-disposer';
 
 export type WrapperProps = {
   value: PlaitElement[];
@@ -65,15 +66,75 @@ export const Wrapper: React.FC<WrapperProps> = ({
   onViewportChange,
   onThemeChange,
 }) => {
-  const [context, setContext] = useState<BoardContextValue>(() => {
+  const [context, setContext] = useState<BoardContextValue | null>(null);
+  useLayoutEffect(() => {
     const board = initializeBoard(value, options, plugins, viewport, theme);
     const listRender = initializeListRender(board);
-    return {
+    const nextContext: BoardContextValue = {
       v: 0,
       board,
       listRender,
     };
-  });
+    setContext(nextContext);
+    return () => {
+      try {
+        listRender.destroy();
+      } finally {
+        disposeBoardDisposers(board);
+        setContext((current) => (current === nextContext ? null : current));
+      }
+    };
+    // Board and plugin ownership is fixed for one mounted Wrapper. Changes to
+    // these initialization props are handled by the existing update paths.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!context) {
+    return null;
+  }
+
+  return (
+    <InitializedWrapper
+      context={context}
+      value={value}
+      theme={theme}
+      onChange={onChange}
+      onSelectionChange={onSelectionChange}
+      onValueChange={onValueChange}
+      onViewportChange={onViewportChange}
+      onThemeChange={onThemeChange}
+    >
+      {children}
+    </InitializedWrapper>
+  );
+};
+
+type InitializedWrapperProps = Pick<
+  WrapperProps,
+  | 'value'
+  | 'children'
+  | 'theme'
+  | 'onChange'
+  | 'onSelectionChange'
+  | 'onValueChange'
+  | 'onViewportChange'
+  | 'onThemeChange'
+> & {
+  context: BoardContextValue;
+};
+
+const InitializedWrapper: React.FC<InitializedWrapperProps> = ({
+  context,
+  value,
+  children,
+  theme,
+  onChange,
+  onSelectionChange,
+  onValueChange,
+  onViewportChange,
+  onThemeChange,
+}) => {
+  const [contextVersion, setContextVersion] = useState(0);
 
   const { board, listRender } = context;
 
@@ -121,20 +182,8 @@ export const Wrapper: React.FC<WrapperProps> = ({
       onThemeChange(board.theme.themeColorMode);
     }
 
-    setContext((prevContext) => ({
-      v: prevContext.v + 1,
-      board,
-      listRender,
-    }));
-  }, [
-    board,
-    listRender,
-    onChange,
-    onSelectionChange,
-    onThemeChange,
-    onValueChange,
-    onViewportChange,
-  ]);
+    setContextVersion((version) => version + 1);
+  }, [board, onChange, onSelectionChange, onThemeChange, onValueChange, onViewportChange]);
 
   useEffect(() => {
     BOARD_TO_ON_CHANGE.set(board, () => {
@@ -195,7 +244,7 @@ export const Wrapper: React.FC<WrapperProps> = ({
       return;
     }
 
-    if (value !== context.board.children && !FLUSHING.get(board)) {
+    if (value !== board.children && !FLUSHING.get(board)) {
       board.children = value;
       if (theme) {
         board.theme = theme;
@@ -205,12 +254,16 @@ export const Wrapper: React.FC<WrapperProps> = ({
         parent: board,
         parentG: PlaitBoard.getElementHost(board),
       });
-      BoardTransforms.fitViewport(board);
+      fitViewportWithinZoomBounds(board);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  return <BoardContext.Provider value={context}>{children}</BoardContext.Provider>;
+  return (
+    <BoardContext.Provider value={{ ...context, v: context.v + contextVersion }}>
+      {children}
+    </BoardContext.Provider>
+  );
 };
 
 const initializeBoard = (

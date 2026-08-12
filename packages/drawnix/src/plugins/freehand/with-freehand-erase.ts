@@ -12,7 +12,7 @@ import { isDrawingMode } from '@plait/common';
 import { isHitFreehand } from './utils';
 import { Freehand, FreehandShape } from './type';
 import { LaserPointer } from '../../utils/laser-pointer';
-import { isTwoFingerMode } from '@plait-board/react-board';
+import { isTwoFingerMode, registerBoardDisposer } from '@plait-board/react-board';
 
 export const withFreehandErase = (board: PlaitBoard) => {
   const { pointerDown, pointerMove, pointerUp, globalPointerUp, touchStart } = board;
@@ -21,6 +21,17 @@ export const withFreehandErase = (board: PlaitBoard) => {
 
   let isErasing = false;
   const elementsToDelete = new Set<string>();
+  let disposed = false;
+
+  registerBoardDisposer(board, () => {
+    if (disposed) {
+      return;
+    }
+    disposed = true;
+    isErasing = false;
+    elementsToDelete.clear();
+    laserPointer.destroy();
+  });
 
   const checkAndMarkFreehandElementsForDeletion = (point: Point) => {
     const viewBoxPoint = toViewBoxPoint(board, toHostPoint(board, point[0], point[1]));
